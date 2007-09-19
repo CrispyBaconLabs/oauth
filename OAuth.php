@@ -35,13 +35,11 @@ class OAuthRequest {
     public $params;
     public $http_method;
     public $http_url;
-    public $http_body;
 
-    function __construct($params, $http_method, $http_url, $http_body=NULL) {
+    function __construct($params, $http_method, $http_url) {
         $this->params = $params;
         $this->http_method = $http_method;
         $this->http_url = $http_url;
-        $this->http_body = $http_body;
     }
 
     function __get($name) {
@@ -68,10 +66,6 @@ class OAuthRequest {
 
     function normalized_http_method() {
         return strtoupper($this->http_method);
-    }
-
-    function normalized_http_body() {
-        return $this->http_body;
     }
 
     function normalized_http_url() {
@@ -105,7 +99,6 @@ class OAuthRequest {
             $this->normalized_http_method(), 
             $this->normalized_http_url(),
             $this->normalized_params(),
-            $this->normalized_http_body(),
             $timestamp,
             $nonce
         );
