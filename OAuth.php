@@ -112,8 +112,8 @@ class OAuthRequest {
 
         $raw = implode("&", $sig);
         $hashed = hash_hmac("sha1", $raw, $consumer->secret);
-        $hashed = str_replace(".", "%2E", $hashed);
-        return implode(".", array($timestamp, $nonce, $hashed));
+        //$hashed = str_replace(".", "%2E", $hashed);
+        return $hashed;
     } 
 
 
@@ -231,12 +231,14 @@ class OAuthServer {
     }
 
     function check_signature_HMAC_SHA1(&$request, &$consumer, &$token) {
-        $signature_raw = @$request->oauth_signature;
+        $signature = @$request->oauth_signature;
+        $timestamp = @$request->oauth_ts;
+        $nonce = @$request->oauth_nonce;
 
-        list($timestamp, $nonce, $signature) = array_map(
-            array($this, "unescape_dots"), 
-            explode(".", $signature_raw)
-        );
+        //list($timestamp, $nonce, $signature) = array_map(
+        //    array($this, "unescape_dots"), 
+        //    explode(".", $signature_raw)
+        //);
 
         $this->check_timestamp($timestamp);
         $this->check_nonce($consumer, $token, $nonce, $timestamp);
@@ -245,7 +247,7 @@ class OAuthServer {
             $request, $consumer, $token, $token, $timestamp
         );
         
-        if ($signature_raw != $built) {
+        if ($signature != $built) {
             throw new OAuthException("Invalid signature");
         }
     }
