@@ -11,7 +11,7 @@ class OAuthConsumer {/*{{{*/
     public $secret;
     public $callback_url;
 
-    function __construct($key, $secret, $callback_url) {/*{{{*/
+    function __construct($key, $secret, $callback_url=NULL) {/*{{{*/
         $this->key = $key;
         $this->secret = $secret;
         $this->callback_url = $callback_url;
@@ -58,7 +58,7 @@ class OAuthRequest {/*{{{*/
         ksort($sorted);
         
         $total = array();
-        foreach ($total as $k => $v) {
+        foreach ($sorted as $k => $v) {
             $total[] = $k . "=" . $v;
         }
         return urlencode(implode("&", $total));
@@ -77,33 +77,33 @@ class OAuthRequest {/*{{{*/
     /**
      * pretty much a helper function to set up the request
      */
-    function build_request(&$consumer, &$token) {
+    function build_request($consumer, $token) {
         // set up some default bits
-        @$this['oauth_version'] or $this['oauth_version'] = '1.0';
-        @$this['oauth_nonce'] 
-                or $this['oauth_nonce'] = $this->generate_nonce();
-        @$this['oauth_timestamp']
-                or $this['oauth_timestamp'] = $this->generate_timestamp();
+        @$this->oauth_version or $this->oauth_version = '1.0';
+        @$this->oauth_nonce
+                or $this->oauth_nonce = $this->generate_nonce();
+        @$this->oauth_timestamp
+                or $this->oauth_timestamp = $this->generate_timestamp();
 
-        @$this['oauth_consumer_key']
-                or $this['oauth_consumer_key'] = $consumer->key;
+        @$this->oauth_consumer_key
+                or $this->oauth_consumer_key = $consumer->key;
 
         if ($token) {
-            @$this['oauth_token']
-                    or $this['oauth_token'] = $token->key;
+            @$this->oauth_token
+                    or $this->oauth_token = $token->key;
             
         }
 
     }
 
-    function sign_request_HMA_SHA1(&$consumer, &$token) {
-        $this['oauth_signature_method'] = 'HMAC-SHA1';
-        $this['oauth_signature'] = $this->build_signature_HMAC_SHA1($consumer,
+    function sign_request_HMAC_SHA1($consumer, $token) {
+        $this->oauth_signature_method = 'HMAC-SHA1';
+        $this->oauth_signature = $this->build_signature_HMAC_SHA1($consumer,
                                                                     $token);
     }
 
     // signature building
-    function build_signature_HMAC_SHA1(&$consumer, &$token) {/*{{{*/
+    function build_signature_HMAC_SHA1($consumer, $token) {/*{{{*/
         $sig = array(
             $this->normalized_http_method(), 
             $this->normalized_http_url(),
@@ -120,6 +120,7 @@ class OAuthRequest {/*{{{*/
         }
 
         $raw = implode("&", $sig);
+        print $raw . "\n";
         $hashed = hash_hmac("sha1", $raw, $key);
         //$hashed = str_replace(".", "%2E", $hashed);
         return $hashed;
@@ -133,7 +134,7 @@ class OAuthRequest {/*{{{*/
     function generate_nonce() {/*{{{*/
         $mt = microtime();
         $rand = mt_rand();
-        
+
         return md5($mt . $rand); // md5s look nicer than numbers
     }/*}}}*/
 
@@ -196,7 +197,7 @@ class OAuthServer {/*{{{*/
         return $consumer;
     }/*}}}*/
 
-    function get_token(&$request, &$consumer, $token_type="access") {/*{{{*/
+    function get_token(&$request, $consumer, $token_type="access") {/*{{{*/
         $token_field = @$request->oauth_token;
         $token = $this->store->lookup_token(
             $consumer, $token_type, $token_field
@@ -210,25 +211,25 @@ class OAuthServer {/*{{{*/
         return $token;
     }/*}}}*/
 
-    function check_signature(&$request, &$consumer, &$token) {/*{{{*/
+    function check_signature(&$request, $consumer, $token) {/*{{{*/
         $signature_method = $this->get_signature_method($request);
         
-        $signature_method_name = 
+        $signature_method_name =
             "check_signature_" . str_replace("-","_",$signature_method);
 
         $this->$signature_method_name($request, $consumer, $token);
     }/*}}}*/
 
-    function check_signature_PLAINTEXT(&$request, &$consumer, &$token = NULL) {/*{{{*/
+    function check_signature_PLAINTEXT(&$request, $consumer, $token = NULL) {/*{{{*/
         // pass for now
         $signature_raw = @$request->oauth_signature;
         list($consumer_secret, $token_secret) = array_map(
-            array($this, "unescape_dots"), 
+            array($this, "unescape_dots"),
             explode(".", $signature_raw)
         );
 
         if (!$consumer_secret == $consumer->secret) {
-            throw new OAuthException("Unable to verify consumer");   
+            throw new OAuthException("Unable to verify consumer");
         }
 
         if ($token) {
@@ -238,9 +239,9 @@ class OAuthServer {/*{{{*/
         }
     }/*}}}*/
 
-    function check_signature_HMAC_SHA1(&$request, &$consumer, &$token) {/*{{{*/
+    function check_signature_HMAC_SHA1(&$request, $consumer, $token) {/*{{{*/
         $signature = @$request->oauth_signature;
-        $timestamp = @$request->oauth_timestamp; 
+        $timestamp = @$request->oauth_timestamp;
         $nonce = @$request->oauth_nonce;
 
         $this->check_timestamp($timestamp);
@@ -263,7 +264,7 @@ class OAuthServer {/*{{{*/
         }
     }/*}}}*/
 
-    function check_nonce(&$consumer, &$token, $nonce, $timestamp) {/*{{{*/
+    function check_nonce($consumer, $token, $nonce, $timestamp) {/*{{{*/
         // verify that the nonce is uniqueish
         $found = $this->store->lookup_nonce($consumer, $token, $nonce, $timestamp);
         if ($found) {
@@ -319,19 +320,19 @@ class OAuthStore {/*{{{*/
         // implement me
     }/*}}}*/
 
-    function lookup_token(&$consumer, $token_type, $token) {/*{{{*/
+    function lookup_token($consumer, $token_type, $token) {/*{{{*/
         // implement me
     }/*}}}*/
 
-    function lookup_nonce(&$consumer, &$token, $nonce, $timestamp) {/*{{{*/
+    function lookup_nonce($consumer, $token, $nonce, $timestamp) {/*{{{*/
         // implement me
     }/*}}}*/
 
-    function new_request_token(&$consumer) {/*{{{*/
+    function new_request_token($consumer) {/*{{{*/
         // return a new token attached to this consumer
     }/*}}}*/
 
-    function new_access_token(&$token, &$consumer) {/*{{{*/
+    function new_access_token($token, $consumer) {/*{{{*/
         // return a new access token attached to this consumer
         // for the user associated with this token
         // should also invalidate the request token
@@ -350,7 +351,7 @@ class MockOAuthStore extends OAuthStore {/*{{{*/
     private $nonce;
 
     function __construct() {/*{{{*/
-        $this->consumer = new OAuthConsumer("key", "secret");
+        $this->consumer = new OAuthConsumer("key", "secret", NULL);
         $this->request_token = new OAuthToken("requestkey", "requestsecret", 1);
         $this->access_token = new OAuthToken("accesskey", "accesssecret", 1);
         $this->nonce = "nonce";
@@ -361,15 +362,16 @@ class MockOAuthStore extends OAuthStore {/*{{{*/
         return NULL;
     }/*}}}*/
 
-    function lookup_token(&$consumer, $token_type, $token) {/*{{{*/
+    function lookup_token($consumer, $token_type, $token) {/*{{{*/
+        $token_attrib = $token_type . "_token";
         if ($consumer->key == $this->consumer->key
-            && $token == $this->"${token_type}_token"->key) {
-            return $this->"${token_type}_token";
+            && $token == $this->$token_attrib->key) {
+            return $this->$token_attrib;
         }
         return NULL;
     }/*}}}*/
 
-    function lookup_nonce(&$consumer, &$token, $nonce, $timestamp) {/*{{{*/
+    function lookup_nonce($consumer, $token, $nonce, $timestamp) {/*{{{*/
         if ($consumer->key == $this->consumer->key
             && ($token->key == $this->request_token->key
                 || $token->key == $this->access_token->key)
@@ -379,14 +381,14 @@ class MockOAuthStore extends OAuthStore {/*{{{*/
         return NULL;
     }/*}}}*/
 
-    function new_request_token(&$consumer) {/*{{{*/
+    function new_request_token($consumer) {/*{{{*/
         if ($consumer->key == $this->consumer->key) {
             return $this->request_token;
         }
         return NULL;
     }/*}}}*/
 
-    function new_access_token(&$token, &$consumer) {/*{{{*/
+    function new_access_token($token, $consumer) {/*{{{*/
         if ($consumer->key == $this->consumer->key
             && $token->key == $this->request_token->key) {
             return $this->access_token;
@@ -420,7 +422,7 @@ class SimpleOAuthStore extends OAuthStore {/*{{{*/
         return $obj;
     }/*}}}*/
 
-    function lookup_token(&$consumer, $token_type, $token) {/*{{{*/
+    function lookup_token($consumer, $token_type, $token) {/*{{{*/
         $rv = dba_fetch("${token_type}_${token}", $this->dbh);
         if ($rv === FALSE) {
             return NULL;
@@ -432,11 +434,11 @@ class SimpleOAuthStore extends OAuthStore {/*{{{*/
         return $obj;
     }/*}}}*/
 
-    function lookup_nonce(&$consumer, &$token, $nonce, $timestamp) {/*{{{*/
+    function lookup_nonce($consumer, $token, $nonce, $timestamp) {/*{{{*/
         return dba_exists("nonce_$nonce", $this->dbh);
     }/*}}}*/
 
-    function new_token(&$consumer, $type="request") {/*{{{*/
+    function new_token($consumer, $type="request") {/*{{{*/
         $key = md5(time());
         $secret = time() + time();
         $token = new OAuthToken($key, md5(md5($secret)));
@@ -446,11 +448,11 @@ class SimpleOAuthStore extends OAuthStore {/*{{{*/
         return $token;
     }/*}}}*/
 
-    function new_request_token(&$consumer) {/*{{{*/
+    function new_request_token($consumer) {/*{{{*/
         return $this->new_token($consumer, "request");
     }/*}}}*/
 
-    function new_access_token(&$token, &$consumer) {/*{{{*/
+    function new_access_token($token, $consumer) {/*{{{*/
 
         $token = $this->new_token($consumer, 'access');
         dba_delete("request_" . $token->key, $this->dbh);
