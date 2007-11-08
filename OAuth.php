@@ -59,6 +59,7 @@ class OAuthRequest {/*{{{*/
         
         $total = array();
         foreach ($sorted as $k => $v) {
+            if ($k == "oauth_signature") continue;
             $total[] = $k . "=" . $v;
         }
         return urlencode(implode("&", $total));
@@ -91,7 +92,6 @@ class OAuthRequest {/*{{{*/
         if ($token) {
             @$this->oauth_token
                     or $this->oauth_token = $token->key;
-            
         }
 
     }
@@ -105,7 +105,7 @@ class OAuthRequest {/*{{{*/
     // signature building
     function build_signature_HMAC_SHA1($consumer, $token) {/*{{{*/
         $sig = array(
-            $this->normalized_http_method(), 
+            $this->normalized_http_method(),
             $this->normalized_http_url(),
             $this->normalized_params(),
             $consumer->secret,
@@ -120,7 +120,6 @@ class OAuthRequest {/*{{{*/
         }
 
         $raw = implode("&", $sig);
-        print $raw . "\n";
         $hashed = hash_hmac("sha1", $raw, $key);
         //$hashed = str_replace(".", "%2E", $hashed);
         return $hashed;
@@ -138,10 +137,6 @@ class OAuthRequest {/*{{{*/
         return md5($mt . $rand); // md5s look nicer than numbers
     }/*}}}*/
 
-    // php sucks at map/filter
-    function not_oauth($name) {/*{{{*/
-        return substr($name, 0, 5) != "oauth";
-    }/*}}}*/
 }/*}}}*/
 
 class OAuthServer {/*{{{*/
@@ -163,7 +158,7 @@ class OAuthServer {/*{{{*/
         if (!$version) {
             $version = 1.0;
         }
-        if ($version && $version >= $this->version) {
+        if ($version && $version != $this->version) {
             throw new OAuthException("OAuth version '$version' not supported");
         }
         return $version;
@@ -248,7 +243,7 @@ class OAuthServer {/*{{{*/
         $this->check_nonce($consumer, $token, $nonce, $timestamp);
         
         $built = $request->build_signature_HMAC_SHA1(
-            $consumer, $token, $timestamp, $nonce
+            $consumer, $token
         );
         
         if ($signature != $built) {
@@ -291,9 +286,9 @@ class OAuthServer {/*{{{*/
 
     function access_token(&$request) {/*{{{*/
         $this->get_version($request);
-        
+
         $consumer = $this->get_consumer($request);
-        
+
         // requires authorized request token
         $token = $this->get_token($request, $consumer, "request");
 
@@ -373,8 +368,8 @@ class MockOAuthStore extends OAuthStore {/*{{{*/
 
     function lookup_nonce($consumer, $token, $nonce, $timestamp) {/*{{{*/
         if ($consumer->key == $this->consumer->key
-            && ($token->key == $this->request_token->key
-                || $token->key == $this->access_token->key)
+            && (($token && $token->key == $this->request_token->key)
+                || ($token && $token->key == $this->access_token->key))
             && $nonce == $this->nonce) {
             return $this->nonce;
         }
@@ -459,8 +454,5 @@ class SimpleOAuthStore extends OAuthStore {/*{{{*/
         return $token;
     }/*}}}*/
 }/*}}}*/
-
-
-
 
 ?>
