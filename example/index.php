@@ -15,6 +15,10 @@ $acc_req = new OAuthRequest(array(), "GET", $base_url . "/access_token.php");
 $acc_req->build_request($test_consumer, $req_token);
 $acc_req->sign_request_HMAC_SHA1($test_consumer, $req_token);
 
+$echo_req = new OAuthRequest(array("method"=> "foo", "bar" => "baz"), "GET", $base_url . "/echo_api.php");
+$echo_req->build_request($test_consumer, $acc_token);
+$echo_req->sign_request_HMAC_SHA1($test_consumer, $acc_token);
+
 ?>
 <html>
 <head>
@@ -70,6 +74,9 @@ A successful request will echo the non-OAuth parameters sent to it, for example:
 <p><code>method=foo&amp;bar=baz</code></p>
 <p>An unsuccessful request will attempt to describe what went wrong.</p>
 
+<h4>Example</h4>
+<a href="<?php echo $echo_req; ?>"><?php echo $echo_req; ?></a>
+
 <h3>Currently Supported Signature Methods</h3>
 <ul>
 <?php
@@ -78,3 +85,7 @@ foreach ($test_server->signature_methods as $method) {
 }
 ?>
 </ul>
+
+<h3>Further Resources</h3>
+<p>The code running this example can be downloaded from the PHP section of the OAuth google code project: <a href="http://code.google.com/p/oauth/">http://code.google.com/p/oauth/</a>
+</body>

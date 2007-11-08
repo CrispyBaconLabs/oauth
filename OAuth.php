@@ -176,7 +176,7 @@ class OAuthServer {/*{{{*/
   public $timestamp_threshold = 300; // in seconds, five minutes
   public $version = 1.0;
   public $signature_methods = array(
-    "PLAINTEXT",
+    //"PLAINTEXT",
     "HMAC-SHA1",
   );
 
