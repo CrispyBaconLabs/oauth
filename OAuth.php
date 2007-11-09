@@ -33,9 +33,12 @@ class OAuthToken {/*{{{*/
     $this->data = $data;
   }   /*}}}*/
 
-  function __toString() {
+  function to_string() {
     return "oauth_token=" . urlencode($this->key) . 
         "&oauth_token_secret=" . urlencode($this->secret);
+  }
+  function __toString() {
+    return $this->to_string();
   }
 }/*}}}*/
 
@@ -98,7 +101,7 @@ class OAuthRequest {/*{{{*/
     return $url_string;
   }/*}}}*/
 
-  function __toString() {/*{{{*/
+  function to_string() {
     $out = $this->normalized_http_url() . "?";
     $total = array();
     foreach ($this->params as $k => $v) {
@@ -106,6 +109,10 @@ class OAuthRequest {/*{{{*/
     }
     $out .= implode("&", $total);
     return $out;
+  }
+
+  function __toString() {/*{{{*/
+    return $this->to_string();
   }/*}}}*/
 
   /**
