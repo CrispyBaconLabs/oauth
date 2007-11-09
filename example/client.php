@@ -24,7 +24,7 @@ if ($action == "request_token") {
   $req_req->build_request($test_consumer, NULL);
   $req_req->sign_request_HMAC_SHA1($test_consumer, NULL);
   if ($dump_request) {
-    print "request url: " . $req_req->to_string(). "<br />\n";
+    print "request url: " . $req_req->to_string(). "\n";
     print_r($req_req);
     exit;
   }
@@ -44,7 +44,7 @@ else if ($action == "access_token") {
   $acc_req->build_request($test_consumer, $test_token);
   $acc_req->sign_request_HMAC_SHA1($test_consumer, $test_token);
   if ($dump_request) {
-    print "request url: " . $acc_req->to_string() . "<br />\n";
+    print "request url: " . $acc_req->to_string() . "\n";
     print_r($acc_req);
     exit;
   }
