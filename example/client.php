@@ -32,7 +32,7 @@ if ($action == "request_token") {
   Header("Location: $req_req");
 } 
 else if ($action == "authorize") {
-  $callback_url = "http://$base_url/client.php?key=$key&secret=$secret&oauth_token=$token&oauth_token_secret=$token_secret&endpoint=" . urlencode($endpoint);
+  $callback_url = "$base_url/client.php?key=$key&secret=$secret&token=$token&token_secret=$token_secret&endpoint=" . urlencode($endpoint);
   $auth_url = $endpoint . "?oauth_token=$token&oauth_callback=".urlencode($callback_url);
   if ($dump_request) {
     Header('Content-type: text/plain');
