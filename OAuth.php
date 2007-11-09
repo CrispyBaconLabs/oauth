@@ -1,5 +1,5 @@
 <?php
-//vim: foldmethod=marker
+// vim: foldmethod=marker
 
 /* Generic exception class
  */
@@ -43,6 +43,7 @@ class OAuthRequest {/*{{{*/
   public $params;
   public $http_method;
   public $http_url;
+  public $base_string;
 
   function __construct($params, $http_method, $http_url) {/*{{{*/
     $this->params = $params;
@@ -136,7 +137,6 @@ class OAuthRequest {/*{{{*/
     );
   }/*}}}*/
 
-  // signature building
   function build_signature_HMAC_SHA1($consumer, $token) {/*{{{*/
     $sig = array(
       $this->normalized_http_method(),
@@ -154,6 +154,7 @@ class OAuthRequest {/*{{{*/
     }
 
     $raw = implode("&", $sig);
+    $this->base_string = $raw;
     $hashed = base64_encode(hash_hmac("sha1", $raw, $key, TRUE));
     //$hashed = str_replace(".", "%2E", $hashed);
     return $hashed;
@@ -211,7 +212,6 @@ class OAuthServer {/*{{{*/
     return $signature_method;
   }/*}}}*/
 
-
   function get_consumer(&$request) {/*{{{*/
     $consumer_key = @$request->oauth_consumer_key;
     if (!$consumer_key) {
@@ -241,6 +241,13 @@ class OAuthServer {/*{{{*/
   }/*}}}*/
 
   function check_signature(&$request, $consumer, $token) {/*{{{*/
+    // this should probably be in a different method
+    $timestamp = @$request->oauth_timestamp;
+    $nonce = @$request->oauth_nonce;
+
+    $this->check_timestamp($timestamp);
+    $this->check_nonce($consumer, $token, $nonce, $timestamp);
+
     $signature_method = $this->get_signature_method($request);
 
     $signature_method_name =
@@ -270,11 +277,6 @@ class OAuthServer {/*{{{*/
 
   function check_signature_HMAC_SHA1(&$request, $consumer, $token) {/*{{{*/
     $signature = @$request->oauth_signature;
-    $timestamp = @$request->oauth_timestamp;
-    $nonce = @$request->oauth_nonce;
-
-    $this->check_timestamp($timestamp);
-    $this->check_nonce($consumer, $token, $nonce, $timestamp);
 
     $built = $request->build_signature_HMAC_SHA1(
       $consumer, $token
@@ -342,7 +344,6 @@ class OAuthServer {/*{{{*/
   }/*}}}*/
 
 }/*}}}*/
-
 
 class OAuthStore {/*{{{*/
   function lookup_consumer($consumer_key) {/*{{{*/

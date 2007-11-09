@@ -25,6 +25,7 @@ $echo_req->sign_request_HMAC_SHA1($test_consumer, $acc_token);
 <title>OAuth Test Server</title>
 </head>
 <body>
+<div><a href="index.php">server</a> | <a href="client.php">client</a></div>
 <h1>OAuth Test Server</h1>
 <h2>Instructions for Use</h2>
 <p>This is a test server with a predefined static set of keys and tokens, you can make your requests using them to test your code (and mine ;)).</p>
@@ -87,5 +88,6 @@ foreach ($test_server->signature_methods as $method) {
 </ul>
 
 <h3>Further Resources</h3>
+<p>There is also a <a href="client.php">test client</a> implementation in here.</p>
 <p>The code running this example can be downloaded from the PHP section of the OAuth google code project: <a href="http://code.google.com/p/oauth/">http://code.google.com/p/oauth/</a>
 </body>
