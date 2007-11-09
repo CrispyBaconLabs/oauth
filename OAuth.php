@@ -82,6 +82,7 @@ class OAuthRequest {/*{{{*/
     foreach ($sorted as $k => $v) {
       if ($k == "oauth_signature") continue;
       $total[] = $k . "=" . $v;
+      //$total[] = urlencode($k) . "=" . urlencode($v);
     }
     return urlencode(implode("&", $total));
   }/*}}}*/
@@ -100,7 +101,7 @@ class OAuthRequest {/*{{{*/
     $out = $this->normalized_http_url() . "?";
     $total = array();
     foreach ($this->params as $k => $v) {
-      $total[] = $k . "=" . $v;
+      $total[] = urlencode($k) . "=" . urlencode($v);
     }
     $out .= implode("&", $total);
     return $out;
