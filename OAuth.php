@@ -88,7 +88,7 @@ class OAuthRequest {/*{{{*/
       $total[] = $k . "=" . $v;
       //$total[] = urlencode($k) . "=" . urlencode($v);
     }
-    return urlencode(implode("&", $total));
+    return implode("&", $total);
   }/*}}}*/
 
   function normalized_http_method() {/*{{{*/
@@ -146,15 +146,15 @@ class OAuthRequest {/*{{{*/
 
   function build_signature_HMAC_SHA1($consumer, $token) {/*{{{*/
     $sig = array(
-      $this->normalized_http_method(),
-      $this->normalized_http_url(),
-      $this->signable_params(),
-      $consumer->secret,
+      urlencode($this->normalized_http_method()),
+      urlencode($this->normalized_http_url()),
+      urlencode($this->signable_params()),
+      urlencode($consumer->secret),
     );
     $key = $consumer->secret . "&";
 
     if ($token) {
-      array_push($sig, $token->secret);
+      array_push($sig, urlencode($token->secret));
       $key .= $token->secret;
     } else {
       array_push($sig, '');
