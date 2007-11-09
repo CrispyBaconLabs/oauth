@@ -153,7 +153,7 @@ class OAuthRequest {/*{{{*/
     }
 
     $raw = implode("&", $sig);
-    $hashed = hash_hmac("sha1", $raw, $key);
+    $hashed = base64_encode(hash_hmac("sha1", $raw, $key, TRUE));
     //$hashed = str_replace(".", "%2E", $hashed);
     return $hashed;
   } /*}}}*/
