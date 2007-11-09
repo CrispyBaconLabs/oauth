@@ -24,6 +24,7 @@ if ($action == "request_token") {
   $req_req->build_request($test_consumer, NULL);
   $req_req->sign_request_HMAC_SHA1($test_consumer, NULL);
   if ($dump_request) {
+    Header('Content-type: text/plain');
     print "request url: " . $req_req->to_string(). "\n";
     print_r($req_req);
     exit;
@@ -34,6 +35,7 @@ else if ($action == "authorize") {
   $callback_url = "http://$base_url/client.php?key=$key&secret=$secret&oauth_token=$token&oauth_token_secret=$token_secret&endpoint=" . urlencode($endpoint);
   $auth_url = $endpoint . "?oauth_token=$token&oauth_callback=".urlencode($callback_url);
   if ($dump_request) {
+    Header('Content-type: text/plain');
     print("auth_url: " . $auth_url);
     exit;
   }
@@ -44,6 +46,7 @@ else if ($action == "access_token") {
   $acc_req->build_request($test_consumer, $test_token);
   $acc_req->sign_request_HMAC_SHA1($test_consumer, $test_token);
   if ($dump_request) {
+    Header('Content-type: text/plain');
     print "request url: " . $acc_req->to_string() . "\n";
     print_r($acc_req);
     exit;
