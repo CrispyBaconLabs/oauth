@@ -93,7 +93,7 @@ class OAuthRequest {/*{{{*/
     return $req;
   }/*}}}*/
 
-  function split_header($header) {
+  function split_header($header) {/*{{{*/
     // this should be a regex
     // error cases: commas in parameter values
     $parts = explode(",", $header);
@@ -106,7 +106,7 @@ class OAuthRequest {/*{{{*/
       $out[$param_parts[0]] = rawurldecode(substr($param_parts[1], 1, -1));
     }
     return $out;
-  }
+  }/*}}}*/
 
   // normalization
   function signable_params() {/*{{{*/
@@ -132,22 +132,22 @@ class OAuthRequest {/*{{{*/
     return $url_string;
   }/*}}}*/
 
-  function to_url() {
+  function to_url() {/*{{{*/
     $out = $this->normalized_http_url() . "?";
     $out .= $this->to_postdata();
     return $out;
-  }
+  }/*}}}*/
 
-  function to_postdata() {
+  function to_postdata() {/*{{{*/
     $total = array();
     foreach ($this->params as $k => $v) {
       $total[] = urlencode($k) . "=" . urlencode($v);
     }
     $out = implode("&", $total);
     return $out;
-  }
+  }/*}}}*/
 
-  function to_header() {
+  function to_header() {/*{{{*/
     $out ='"Authorization: OAuth realm="",';
     $total = array();
     foreach ($this->params as $k => $v) {
@@ -156,7 +156,7 @@ class OAuthRequest {/*{{{*/
     }
     $out = implode(",", $total);
     return $out;
-  }
+  }/*}}}*/
 
   function __toString() {/*{{{*/
     return $this->to_url();
@@ -214,6 +214,29 @@ class OAuthRequest {/*{{{*/
     return $hashed;
   } /*}}}*/
 
+  function sign_request_PLAINTEXT($consumer, $token) {/*{{{*/
+    $this->oauth_signature_method = 'PLAINTEXT';
+    $this->oauth_signature = $this->build_signature_PLAINTEXT(
+      $consumer,
+      $token
+    );
+  }/*}}}*/
+
+  function build_signature_PLAINTEXT($consumer, $token) {/*{{{*/
+    $sig = array(
+      urlencode($consumer->secret),
+    );
+
+    if ($token) {
+      array_push($sig, urlencode($token->secret));
+    } else {
+      array_push($sig, '');
+    }
+
+    $raw = implode("&", $sig);
+    return $raw;
+  } /*}}}*/
+
   // generation
   function generate_timestamp() {/*{{{*/
     return time();
@@ -232,7 +255,7 @@ class OAuthServer {/*{{{*/
   public $timestamp_threshold = 300; // in seconds, five minutes
   public $version = 1.0;
   public $signature_methods = array(
-    //"PLAINTEXT",
+    "PLAINTEXT",
     "HMAC-SHA1",
   );
 
@@ -312,20 +335,14 @@ class OAuthServer {/*{{{*/
 
   function check_signature_PLAINTEXT(&$request, $consumer, $token = NULL) {/*{{{*/
     // pass for now
-    $signature_raw = @$request->oauth_signature;
-    //list($consumer_secret, $token_secret) = array_map(
-    //  array($this, "unescape_dots"),
-    //  explode(".", $signature_raw)
-    //);
+    $signature = @$request->oauth_signature;
 
-    if (!$consumer_secret == $consumer->secret) {
-      throw new OAuthException("Unable to verify consumer");
-    }
+    $built = $request->build_signature_PLAINTEXT(
+      $consumer, $token
+    );
 
-    if ($token) {
-      if (!$token_secret == $token->secret) {
-        throw new OAuthException("Unable to verify $token_type token");
-      }
+    if ($signature != $built) {
+      throw new OAuthException("Invalid signature");
     }
   }/*}}}*/
 

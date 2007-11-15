@@ -15,7 +15,7 @@ $acc_req = new OAuthRequest(array(), "GET", $base_url . "/access_token.php");
 $acc_req->build_request($test_consumer, $req_token);
 $acc_req->sign_request_HMAC_SHA1($test_consumer, $req_token);
 
-$echo_req = new OAuthRequest(array("method"=> "foo", "bar" => "baz"), "GET", $base_url . "/echo_api.php");
+$echo_req = new OAuthRequest(array("method"=> "foo%20bar", "bar" => "baz"), "GET", $base_url . "/echo_api.php");
 $echo_req->build_request($test_consumer, $acc_token);
 $echo_req->sign_request_HMAC_SHA1($test_consumer, $acc_token);
 
