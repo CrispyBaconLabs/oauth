@@ -23,9 +23,17 @@ class OAuthToken {/*{{{*/
   // access tokens and request tokens
   public $key;
   public $secret;
-  public $authorized;
+  public $authorized;  
   public $data;
 
+  /**
+   * key = the token
+   * secret = the token secret
+   * authorized = this only matters on the server side
+   *              a store should only return authorized=1
+   *              if the request token can be exchanged for
+   *              an access_token
+   */
   function __construct($key, $secret, $authorized=FALSE, $data=NULL) {/*{{{*/
     $this->key = $key;
     $this->secret = $secret;
@@ -33,13 +41,18 @@ class OAuthToken {/*{{{*/
     $this->data = $data;
   }   /*}}}*/
 
-  function to_string() {
+  /**
+   * generates the basic string serialization of a token that a server
+   * would respond to request_token and access_token calls with
+   */
+  function to_string() {/*{{{*/
     return "oauth_token=" . urlencode($this->key) . 
         "&oauth_token_secret=" . urlencode($this->secret);
-  }
-  function __toString() {
+  }/*}}}*/
+
+  function __toString() {/*{{{*/
     return $this->to_string();
-  }
+  }/*}}}*/
 }/*}}}*/
 
 class OAuthRequest {/*{{{*/
@@ -62,17 +75,26 @@ class OAuthRequest {/*{{{*/
     $this->params[$name] = $value;
   }/*}}}*/
 
+  /**
+   * attempt to build up a request from what was passed to the server
+   */
   public static function from_request($arr=NULL, $url=NULL, $method=NULL) {/*{{{*/
     @$url or $url = "http://" . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
     @$method or $method = $_SERVER['REQUEST_METHOD'];
-    // let the library user override things however they'd like
-    //
+    
+    // we need this to get the actual Authorization: header
+    // because apache tends to tell us it doesn't exist
     $request_headers = apache_request_headers();
+
+    // let the library user override things however they'd like, if they know
+    // which params to use then go for it, for example XMLRPC might want to
+    // do this
     if ($arr) {
       $req = new OAuthRequest($arr, $method, $url);
     }
     // next check for the auth header, we need to do some extra stuff
-    // if that is the case
+    // if that is the case, namely suck in the params from GET or POST
+    // so that we can include them in the signature
     else if (@substr($request_headers['Authorization'], 0, 5) == "OAuth") {
       $header_params = OAuthRequest::split_header($request_headers['Authorization']);
       if ($method == "GET") {
@@ -93,6 +115,10 @@ class OAuthRequest {/*{{{*/
     return $req;
   }/*}}}*/
 
+  /**
+   * helper function for turning the Authorization: header into
+   * params, has to do some unescaping
+   */
   function split_header($header) {/*{{{*/
     // this should be a regex
     // error cases: commas in parameter values
@@ -100,15 +126,21 @@ class OAuthRequest {/*{{{*/
     $out = array();
     foreach ($parts as $param) {
       $param = ltrim($param);
-      // skip the "realm" param
+      // skip the "realm" param, nobody ever uses it anyway
       if (substr($param, 0, 5) != "oauth") continue;
+
       $param_parts = explode("=", $param);
+
+      // rawurldecode() used because urldecode() will turn a "+" in the
+      // value into a space
       $out[$param_parts[0]] = rawurldecode(substr($param_parts[1], 1, -1));
     }
     return $out;
   }/*}}}*/
 
-  // normalization
+  /**
+   * return a string that consists of all the params that need to be signed
+   */
   function signable_params() {/*{{{*/
     $sorted = $this->params;
     ksort($sorted);
@@ -122,22 +154,35 @@ class OAuthRequest {/*{{{*/
     return implode("&", $total);
   }/*}}}*/
 
+  /**
+   * just uppercases the http method
+   */
   function normalized_http_method() {/*{{{*/
     return strtoupper($this->http_method);
   }/*}}}*/
 
+  /**
+   * parses the url and rebuilds it to be
+   * scheme://host/path
+   */
   function normalized_http_url() {/*{{{*/
     $parts = parse_url($this->http_url);
     $url_string = "{$parts['scheme']}://{$parts['host']}{$parts['path']}";
     return $url_string;
   }/*}}}*/
 
+  /**
+   * builds a url usable for a GET request
+   */
   function to_url() {/*{{{*/
     $out = $this->normalized_http_url() . "?";
     $out .= $this->to_postdata();
     return $out;
   }/*}}}*/
 
+  /**
+   * builds the data one would send in a POST request
+   */
   function to_postdata() {/*{{{*/
     $total = array();
     foreach ($this->params as $k => $v) {
@@ -147,6 +192,9 @@ class OAuthRequest {/*{{{*/
     return $out;
   }/*}}}*/
 
+  /**
+   * builds the Authorization: header
+   */
   function to_header() {/*{{{*/
     $out ='"Authorization: OAuth realm="",';
     $total = array();
@@ -183,6 +231,9 @@ class OAuthRequest {/*{{{*/
 
   }/*}}}*/
 
+  /**
+   * helper for signing method: HMAC-SHA1
+   */
   function sign_request_HMAC_SHA1($consumer, $token) {/*{{{*/
     $this->oauth_signature_method = 'HMAC-SHA1';
     $this->oauth_signature = $this->build_signature_HMAC_SHA1(
@@ -191,29 +242,35 @@ class OAuthRequest {/*{{{*/
     );
   }/*}}}*/
 
+  /**
+   * signature for signing method: HMAC-SHA1
+   * basestring = http_method&http_url&urlencode_param_string
+   * key = consumer_secret&token_secret
+   */
   function build_signature_HMAC_SHA1($consumer, $token) {/*{{{*/
     $sig = array(
       urlencode($this->normalized_http_method()),
       urlencode($this->normalized_http_url()),
       urlencode($this->signable_params()),
-      //urlencode($consumer->secret),
     );
+
     $key = $consumer->secret . "&";
 
     if ($token) {
-      //array_push($sig, urlencode($token->secret));
       $key .= $token->secret;
-    } else {
-      //array_push($sig, '');
     }
 
     $raw = implode("&", $sig);
     $this->base_string = $raw;
+
+    // this is silly.
     $hashed = base64_encode(hash_hmac("sha1", $raw, $key, TRUE));
-    //$hashed = str_replace(".", "%2E", $hashed);
     return $hashed;
   } /*}}}*/
 
+  /**
+   * helper for signing method PLAINTEXT
+   */
   function sign_request_PLAINTEXT($consumer, $token) {/*{{{*/
     $this->oauth_signature_method = 'PLAINTEXT';
     $this->oauth_signature = $this->build_signature_PLAINTEXT(
@@ -222,6 +279,11 @@ class OAuthRequest {/*{{{*/
     );
   }/*}}}*/
 
+
+  /**
+   * signature for signing method: HMAC-SHA1
+   * basestring = consumer_secret&token_secret
+   */
   function build_signature_PLAINTEXT($consumer, $token) {/*{{{*/
     $sig = array(
       urlencode($consumer->secret),
@@ -237,11 +299,16 @@ class OAuthRequest {/*{{{*/
     return $raw;
   } /*}}}*/
 
-  // generation
+  /**
+   * util function: current timestamp
+   */
   function generate_timestamp() {/*{{{*/
     return time();
   }/*}}}*/
 
+  /**
+   * util function: current nonce
+   */
   function generate_nonce() {/*{{{*/
     $mt = microtime();
     $rand = mt_rand();
@@ -253,7 +320,7 @@ class OAuthRequest {/*{{{*/
 
 class OAuthServer {/*{{{*/
   public $timestamp_threshold = 300; // in seconds, five minutes
-  public $version = 1.0;
+  public $version = 1.0;             // hi blaine
   public $signature_methods = array(
     "PLAINTEXT",
     "HMAC-SHA1",
@@ -265,6 +332,10 @@ class OAuthServer {/*{{{*/
     $this->store = $store;
   }/*}}}*/
 
+
+  /**
+   * version 1
+   */
   function get_version(&$request) {/*{{{*/
     $version = @$request->oauth_version;
     if (!$version) {
@@ -276,6 +347,9 @@ class OAuthServer {/*{{{*/
     return $version;
   }/*}}}*/
 
+  /**
+   * figure out the signature with some defaults
+   */
   function get_signature_method(&$request) {/*{{{*/
     $signature_method = @$request->oauth_signature_method;
     if (!$signature_method) {
@@ -289,6 +363,9 @@ class OAuthServer {/*{{{*/
     return $signature_method;
   }/*}}}*/
 
+  /**
+   * try to find the consumer for the provided request's consumer key
+   */
   function get_consumer(&$request) {/*{{{*/
     $consumer_key = @$request->oauth_consumer_key;
     if (!$consumer_key) {
@@ -303,6 +380,9 @@ class OAuthServer {/*{{{*/
     return $consumer;
   }/*}}}*/
 
+  /**
+   * try to find the token for the provided request's token key
+   */
   function get_token(&$request, $consumer, $token_type="access") {/*{{{*/
     $token_field = @$request->oauth_token;
     $token = $this->store->lookup_token(
@@ -317,6 +397,10 @@ class OAuthServer {/*{{{*/
     return $token;
   }/*}}}*/
 
+  /**
+   * all-in-one function to check the signature on a request
+   * should guess the signature method appropriately
+   */
   function check_signature(&$request, $consumer, $token) {/*{{{*/
     // this should probably be in a different method
     $timestamp = @$request->oauth_timestamp;
@@ -333,6 +417,10 @@ class OAuthServer {/*{{{*/
     $this->$signature_method_name($request, $consumer, $token);
   }/*}}}*/
 
+
+  /**
+   * check the signature on a PLAINTEXT method
+   */
   function check_signature_PLAINTEXT(&$request, $consumer, $token = NULL) {/*{{{*/
     // pass for now
     $signature = @$request->oauth_signature;
@@ -346,6 +434,9 @@ class OAuthServer {/*{{{*/
     }
   }/*}}}*/
 
+  /**
+   * check the signature on HMAC-SHA1
+   */
   function check_signature_HMAC_SHA1(&$request, $consumer, $token) {/*{{{*/
     $signature = @$request->oauth_signature;
 
@@ -358,6 +449,9 @@ class OAuthServer {/*{{{*/
     }
   }/*}}}*/
 
+  /**
+   * check that the timestamp is new enough
+   */
   function check_timestamp($timestamp) {/*{{{*/
     // verify that timestamp is recentish
     $now = time();
@@ -366,6 +460,9 @@ class OAuthServer {/*{{{*/
     }
   }/*}}}*/
 
+  /**
+   * check that the nonce is not repeated
+   */
   function check_nonce($consumer, $token, $nonce, $timestamp) {/*{{{*/
     // verify that the nonce is uniqueish
     $found = $this->store->lookup_nonce($consumer, $token, $nonce, $timestamp);
@@ -376,6 +473,11 @@ class OAuthServer {/*{{{*/
 
 
   // high level functions
+
+  /**
+   * process a request_token request
+   * returns the request token on success
+   */
   function request_token(&$request) {/*{{{*/
     $this->get_version($request);
 
@@ -391,6 +493,10 @@ class OAuthServer {/*{{{*/
     return $new_token;
   }/*}}}*/
 
+  /**
+   * process an access_token request
+   * returns the access token on success
+   */
   function access_token(&$request) {/*{{{*/
     $this->get_version($request);
 
@@ -406,6 +512,9 @@ class OAuthServer {/*{{{*/
     return $new_token;
   }/*}}}*/
 
+  /**
+   * verify an api call, checks all the params
+   */
   function verify_request(&$request) {/*{{{*/
     $this->get_version($request);
     $consumer = $this->get_consumer($request);
