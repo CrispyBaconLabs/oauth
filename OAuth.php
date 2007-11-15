@@ -66,14 +66,23 @@ class OAuthRequest {/*{{{*/
     @$url or $url = "http://" . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
     @$method or $method = $_SERVER['REQUEST_METHOD'];
     // let the library user override things however they'd like
+    //
+    $request_headers = apache_request_headers();
     if ($arr) {
       $req = new OAuthRequest($arr, $method, $url);
     }
     // next check for the auth header, we need to do some extra stuff
     // if that is the case
-    else if (@substr($_SERVER['HTTP_AUTHORIZATION'], 0, 5) == "OAuth") {
-      $header_params = $this->split_header($_SERVER['HTTP_AUTHORIZATION']);
-
+    else if (@substr($request_headers['Authorization'], 0, 5) == "OAuth") {
+      $header_params = OAuthRequest::split_header($request_headers['Authorization']);
+      if ($method == "GET") {
+        $req_params = $_GET;
+      } 
+      else if ($method = "POST") {
+        $req_params = $_POST;
+      } 
+      $params = array_merge($header_params, $req_params);
+      $req = new OAuthRequest($params, $method, $url);
     }
     else if ($method == "GET") {
       $req = new OAuthRequest($_GET, $method, $url);
@@ -88,12 +97,13 @@ class OAuthRequest {/*{{{*/
     // this should be a regex
     // error cases: commas in parameter values
     $parts = explode(",", $header);
-    $out = [];
+    $out = array();
     foreach ($parts as $param) {
+      $param = ltrim($param);
       // skip the "realm" param
       if (substr($param, 0, 5) != "oauth") continue;
-      $param_parms = explode("=", $param);
-      $out[$param_parts[0]] = substr($param_parts[1], 1, -1);
+      $param_parts = explode("=", $param);
+      $out[$param_parts[0]] = rawurldecode(substr($param_parts[1], 1, -1));
     }
     return $out;
   }
@@ -125,6 +135,7 @@ class OAuthRequest {/*{{{*/
   function to_url() {
     $out = $this->normalized_http_url() . "?";
     $out .= $this->to_postdata();
+    return $out;
   }
 
   function to_postdata() {
