@@ -24,6 +24,7 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import net.oauth.OAuth;
+import net.oauth.OAuthAccessor;
 import net.oauth.OAuthConsumer;
 import net.oauth.OAuthMessage;
 import net.oauth.OAuthProblemException;
@@ -51,14 +52,21 @@ public class Callback extends HttpServlet {
             throws IOException, ServletException {
         OAuthConsumer consumer = null;
         try {
-            OAuthMessage requestMessage = OAuthServlet
-                    .getMessage(request, null);
+            final OAuthMessage requestMessage = OAuthServlet.getMessage(
+                    request, null);
             requestMessage.requireParameters("consumer");
-            String consumerName = requestMessage.getParameter("consumer");
+            final String consumerName = requestMessage.getParameter("consumer");
+            for (OAuthConsumer c : CookieConsumer.ALL_CONSUMERS) {
+                if (c.getProperty("name").equals(consumerName)) {
+                    consumer = c;
+                    break;
+                }
+            }
+            final CookieMap cookies = new CookieMap(request, response);
+            final OAuthAccessor accessor = CookieConsumer.newAccessor(consumer,
+                    cookies);
+            final String expectedToken = accessor.requestToken;
             String requestToken = requestMessage.getParameter("oauth_token");
-            CookieMap cookies = new CookieMap(request, response);
-            String tokenSecret = cookies.get(consumerName + ".tokenSecret");
-            String expectedToken = cookies.get(consumerName + ".requestToken");
             if (requestToken == null || requestToken.length() <= 0) {
                 log.warning(request.getMethod() + " "
                         + OAuthServlet.getRequestURL(request));
@@ -77,28 +85,25 @@ public class Callback extends HttpServlet {
                 problem.setParameter("oauth_expected_token", expectedToken);
                 throw problem;
             }
-            for (OAuthConsumer c : CookieConsumer.ALL_CONSUMERS) {
-                if (c.getProperty("name").equals(consumerName)) {
-                    consumer = c;
-                    break;
-                }
-            }
-            HttpMethod result = CookieConsumer.invoke(consumer,
-                    consumer.serviceProvider.accessTokenURL, tokenSecret, OAuth
-                            .newList("oauth_token", requestToken));
+            HttpMethod result = CookieConsumer.CLIENT.invoke(accessor, consumer.serviceProvider.accessTokenURL, OAuth.newList(
+            "oauth_token", requestToken));
             String responseBody = result.getResponseBodyAsString();
-            Map<String, String> t = OAuth
-                    .newMap(OAuth.decodeForm(responseBody));
-            String accessToken = t.get("oauth_token");
-            tokenSecret = t.get("oauth_token_secret");
-            if (accessToken != null) {
+            Map<String, String> responseParameters = OAuth.newMap(OAuth
+                    .decodeForm(responseBody));
+            accessor.accessToken = responseParameters.get("oauth_token");
+            accessor.tokenSecret = responseParameters.get("oauth_token_secret");
+            if (accessor.accessToken != null) {
                 String returnTo = requestMessage.getParameter("returnTo");
                 if (returnTo == null) {
                     returnTo = request.getContextPath(); // home page
                 }
                 cookies.remove(consumerName + ".requestToken");
-                cookies.put(consumerName + ".accessToken", accessToken);
-                cookies.put(consumerName + ".tokenSecret", tokenSecret);
+                cookies
+                        .put(consumerName + ".accessToken",
+                                accessor.accessToken);
+                cookies
+                        .put(consumerName + ".tokenSecret",
+                                accessor.tokenSecret);
                 throw new RedirectException(returnTo);
             }
             OAuthProblemException problem = new OAuthProblemException(

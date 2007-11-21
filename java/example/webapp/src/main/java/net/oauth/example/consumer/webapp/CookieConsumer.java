@@ -38,7 +38,6 @@ import net.oauth.OAuthServiceProvider;
 import net.oauth.client.OAuthHttpClient;
 import net.oauth.server.OAuthServlet;
 import org.apache.commons.httpclient.HttpClient;
-import org.apache.commons.httpclient.HttpMethod;
 
 /**
  * Utility methods for consumers that store tokens and secrets in cookies. Each
@@ -51,9 +50,7 @@ public class CookieConsumer {
 
     public static final Collection<OAuthConsumer> ALL_CONSUMERS = new HashSet<OAuthConsumer>();
 
-    public static final String SIGNATURE_METHOD = "HMAC-SHA1";
-
-    private static OAuthHttpClient client = new OAuthHttpClient(
+    public static final OAuthHttpClient CLIENT = new OAuthHttpClient(
             new HttpClientPool() {
                 // This trivial 'pool' simply allocates a new client every time.
                 // More efficient implementations are possible.
@@ -132,8 +129,8 @@ public class CookieConsumer {
         return accessor;
     }
 
-    private static OAuthAccessor newAccessor(OAuthConsumer consumer,
-            CookieMap cookies) throws Exception {
+    static OAuthAccessor newAccessor(OAuthConsumer consumer, CookieMap cookies)
+            throws Exception {
         OAuthAccessor accessor = new OAuthAccessor(consumer);
         String consumerName = (String) consumer.getProperty("name");
         accessor.requestToken = cookies.get(consumerName + ".requestToken");
@@ -150,7 +147,7 @@ public class CookieConsumer {
      */
     private static void getAccessToken(HttpServletRequest request,
             CookieMap cookies, OAuthAccessor accessor) throws Exception {
-        client.getRequestToken(accessor);
+        CLIENT.getRequestToken(accessor);
         String consumerName = (String) accessor.consumer.getProperty("name");
         cookies.put(consumerName + ".requestToken", accessor.requestToken);
         cookies.put(consumerName + ".tokenSecret", accessor.tokenSecret);
@@ -181,17 +178,6 @@ public class CookieConsumer {
             path.append("?").append(queryString);
         }
         return path.toString();
-    }
-
-    public static HttpMethod invoke(OAuthAccessor accessor, String url,
-            Collection<? extends Map.Entry> parameters) throws Exception {
-        return client.invoke(accessor, url, parameters);
-    }
-
-    public static HttpMethod invoke(OAuthConsumer consumer, String url,
-            String tokenSecret, Collection<? extends Map.Entry> parameters)
-            throws Exception {
-        return client.invoke(consumer, url, tokenSecret, parameters);
     }
 
     public static void handleException(Exception e, HttpServletRequest request,

@@ -71,33 +71,22 @@ public class OAuthHttpClient {
 
     public HttpMethod invoke(OAuthAccessor accessor, String url,
             Collection<? extends Map.Entry> parameters) throws Exception {
-        String accessToken = accessor.accessToken;
-        if (accessToken != null) {
-            List<Map.Entry> added = new ArrayList<Map.Entry>();
-            if (parameters != null) {
-                added.addAll(parameters);
-            }
-            added.add(new OAuth.Parameter("oauth_token", accessToken));
-            parameters = added;
-        }
-        return invoke(accessor.consumer, url, accessor.tokenSecret, parameters);
-    }
-
-    public HttpMethod invoke(OAuthConsumer consumer, String url,
-            String tokenSecret, Collection<? extends Map.Entry> parameters)
-            throws Exception {
-        Collection<Map.Entry> parms;
+        final OAuthConsumer consumer = accessor.consumer;
+        List<Map.Entry> parms;
         if (parameters == null) {
             parms = new ArrayList<Map.Entry>(6);
         } else {
             parms = new ArrayList<Map.Entry>(parameters);
         }
         Map<String, String> pMap = OAuth.newMap(parms);
+        if (pMap.get("oauth_token") == null && accessor.accessToken != null) {
+            parms.add(new OAuth.Parameter("oauth_token", accessor.accessToken));
+        }
         if (pMap.get("oauth_consumer_key") == null) {
             parms.add(new OAuth.Parameter("oauth_consumer_key",
                     consumer.consumerKey));
         }
-        String httpMethod = (String) consumer.getProperty("HTTP method");
+        String httpMethod = (String) consumer.getProperty("httpMethod");
         if (httpMethod == null) {
             httpMethod = "GET";
         }
@@ -116,7 +105,7 @@ public class OAuthHttpClient {
                 + ""));
         parms.add(new OAuth.Parameter("oauth_nonce", System.nanoTime() + ""));
         OAuthMessage message = new OAuthMessage(httpMethod, url, parms);
-        message.sign(consumer, tokenSecret);
+        message.sign(consumer, accessor.tokenSecret);
         String form = OAuth.formEncode(message.getParameters());
         HttpMethod method;
         if ("GET".equals(message.httpMethod)) {
