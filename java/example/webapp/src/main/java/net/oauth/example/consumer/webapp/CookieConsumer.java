@@ -35,6 +35,7 @@ import net.oauth.OAuthAccessor;
 import net.oauth.OAuthConsumer;
 import net.oauth.OAuthProblemException;
 import net.oauth.OAuthServiceProvider;
+import net.oauth.client.HttpClientPool;
 import net.oauth.client.OAuthHttpClient;
 import net.oauth.server.OAuthServlet;
 import org.apache.commons.httpclient.HttpClient;
