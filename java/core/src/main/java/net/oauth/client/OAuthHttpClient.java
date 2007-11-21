@@ -52,10 +52,11 @@ public class OAuthHttpClient {
     public void getRequestToken(OAuthAccessor accessor) throws Exception {
         accessor.accessToken = null;
         accessor.tokenSecret = null;
-        HttpMethod method = invoke(accessor,
+        HttpMethod response = invoke(accessor,
                 accessor.consumer.serviceProvider.requestTokenURL, null);
-        String responseBody = method.getResponseBodyAsString();
-        OAuthMessage responseMessage = getResponseMessage(method, responseBody);
+        String responseBody = response.getResponseBodyAsString();
+        OAuthMessage responseMessage = getResponseMessage(response,
+                responseBody);
         accessor.requestToken = responseMessage.getParameter("oauth_token");
         accessor.tokenSecret = responseMessage
                 .getParameter("oauth_token_secret");
@@ -63,11 +64,17 @@ public class OAuthHttpClient {
             OAuthProblemException problem = new OAuthProblemException(
                     "parameter_absent");
             problem.setParameter("oauth_parameters_absent", "oauth_token");
-            problem.getParameters().putAll(getExchange(method, responseBody));
+            problem.getParameters().putAll(getExchange(response, responseBody));
             throw problem;
         }
     }
 
+    /**
+     * Send a request to the service provider and get the response. This may be
+     * a request for a token, or for access to a protected resource.
+     * 
+     * @return the response
+     */
     public HttpMethod invoke(OAuthAccessor accessor, String url,
             Collection<? extends Map.Entry> parameters) throws Exception {
         final OAuthConsumer consumer = accessor.consumer;
@@ -201,7 +208,7 @@ public class OAuthHttpClient {
         return getResponseMessage(method, null);
     }
 
-    private static OAuthMessage getResponseMessage(HttpMethod method,
+    public static OAuthMessage getResponseMessage(HttpMethod method,
             String responseBody) throws IOException {
         return new OAuthMessage(method.getName(), method.getURI().toString(),
                 getResponseParameters(method, responseBody));

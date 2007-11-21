@@ -85,8 +85,9 @@ public class Callback extends HttpServlet {
                 problem.setParameter("oauth_expected_token", expectedToken);
                 throw problem;
             }
-            HttpMethod result = CookieConsumer.CLIENT.invoke(accessor, consumer.serviceProvider.accessTokenURL, OAuth.newList(
-            "oauth_token", requestToken));
+            HttpMethod result = CookieConsumer.CLIENT.invoke(accessor,
+                    consumer.serviceProvider.accessTokenURL, OAuth.newList(
+                            "oauth_token", requestToken));
             String responseBody = result.getResponseBodyAsString();
             Map<String, String> responseParameters = OAuth.newMap(OAuth
                     .decodeForm(responseBody));

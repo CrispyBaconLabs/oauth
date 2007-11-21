@@ -54,7 +54,9 @@ public class MagnoliaConsumer extends HttpServlet {
         try {
             OAuthAccessor accessor = CookieConsumer.getAccessor(request,
                     response, consumer);
-            HttpMethod result = CookieConsumer.CLIENT.invoke(accessor, "http://ma.gnolia.com/api/rest/2/tags_find", OAuth.newList("person", System.getProperty("user.name")));
+            HttpMethod result = CookieConsumer.CLIENT.invoke(accessor,
+                    "http://ma.gnolia.com/api/rest/2/tags_find", OAuth.newList(
+                            "person", System.getProperty("user.name")));
             String responseBody = result.getResponseBodyAsString();
             response.setContentType("text/plain");
             PrintWriter out = response.getWriter();

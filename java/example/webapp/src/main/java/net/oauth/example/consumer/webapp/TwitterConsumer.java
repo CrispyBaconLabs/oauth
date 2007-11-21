@@ -53,7 +53,11 @@ public class TwitterConsumer extends HttpServlet {
         try {
             OAuthAccessor accessor = CookieConsumer.getAccessor(request,
                     response, consumer);
-            HttpMethod result = CookieConsumer.CLIENT.invoke(accessor, "http://twitter.com/statuses/friends_timeline/jmkristian.xml", null);
+            HttpMethod result = CookieConsumer.CLIENT
+                    .invoke(
+                            accessor,
+                            "http://twitter.com/statuses/friends_timeline/jmkristian.xml",
+                            null);
             String responseBody = result.getResponseBodyAsString();
             response.setContentType("text/plain");
             PrintWriter out = response.getWriter();
