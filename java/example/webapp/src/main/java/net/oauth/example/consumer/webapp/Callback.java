@@ -1,0 +1,117 @@
+/*
+ * Copyright 2007 Netflix, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package net.oauth.example.consumer.webapp;
+
+import java.io.IOException;
+import java.util.Map;
+import java.util.logging.Logger;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import net.oauth.OAuth;
+import net.oauth.OAuthConsumer;
+import net.oauth.OAuthMessage;
+import net.oauth.OAuthProblemException;
+import net.oauth.client.OAuthHttpClient;
+import net.oauth.server.OAuthServlet;
+import org.apache.commons.httpclient.HttpMethod;
+
+/**
+ * An OAuth callback handler.
+ * 
+ * @author John Kristian
+ */
+public class Callback extends HttpServlet {
+
+    public static final String PATH = "/OAuth/Callback";
+
+    protected final Logger log = Logger.getLogger(getClass().getName());
+
+    /**
+     * Exchange an OAuth request token for an access token, and store the latter
+     * in cookies.
+     */
+    @Override
+    public void doGet(HttpServletRequest request, HttpServletResponse response)
+            throws IOException, ServletException {
+        OAuthConsumer consumer = null;
+        try {
+            OAuthMessage requestMessage = OAuthServlet
+                    .getMessage(request, null);
+            requestMessage.requireParameters("consumer");
+            String consumerName = requestMessage.getParameter("consumer");
+            String requestToken = requestMessage.getParameter("oauth_token");
+            CookieMap cookies = new CookieMap(request, response);
+            String tokenSecret = cookies.get(consumerName + ".tokenSecret");
+            String expectedToken = cookies.get(consumerName + ".requestToken");
+            if (requestToken == null || requestToken.length() <= 0) {
+                log.warning(request.getMethod() + " "
+                        + OAuthServlet.getRequestURL(request));
+                requestToken = expectedToken;
+                if (requestToken == null) {
+                    OAuthProblemException problem = new OAuthProblemException(
+                            "parameter_absent");
+                    problem.setParameter("oauth_parameters_absent",
+                            "oauth_token");
+                    throw problem;
+                }
+            } else if (!requestToken.equals(expectedToken)) {
+                OAuthProblemException problem = new OAuthProblemException(
+                        "token_rejected");
+                problem.setParameter("oauth_rejected_token", requestToken);
+                problem.setParameter("oauth_expected_token", expectedToken);
+                throw problem;
+            }
+            for (OAuthConsumer c : CookieConsumer.ALL_CONSUMERS) {
+                if (c.getProperty("name").equals(consumerName)) {
+                    consumer = c;
+                    break;
+                }
+            }
+            HttpMethod result = CookieConsumer.invoke(consumer,
+                    consumer.serviceProvider.accessTokenURL, tokenSecret, OAuth
+                            .newList("oauth_token", requestToken));
+            String responseBody = result.getResponseBodyAsString();
+            Map<String, String> t = OAuth
+                    .newMap(OAuth.decodeForm(responseBody));
+            String accessToken = t.get("oauth_token");
+            tokenSecret = t.get("oauth_token_secret");
+            if (accessToken != null) {
+                String returnTo = requestMessage.getParameter("returnTo");
+                if (returnTo == null) {
+                    returnTo = request.getContextPath(); // home page
+                }
+                cookies.remove(consumerName + ".requestToken");
+                cookies.put(consumerName + ".accessToken", accessToken);
+                cookies.put(consumerName + ".tokenSecret", tokenSecret);
+                throw new RedirectException(returnTo);
+            }
+            OAuthProblemException problem = new OAuthProblemException(
+                    "parameter_absent");
+            problem.setParameter("oauth_parameters_absent", "oauth_token");
+            problem.getParameters().putAll(
+                    OAuthHttpClient.getExchange(result, responseBody));
+            throw problem;
+        } catch (Exception e) {
+            CookieConsumer.handleException(e, request, response, consumer);
+        }
+    }
+
+    private static final long serialVersionUID = 1L;
+
+}

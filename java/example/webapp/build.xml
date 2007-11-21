@@ -1,0 +1,82 @@
+<project name="CookieJar" default="compile" basedir=".">
+  <property file="build-local.properties"/>
+  <property file="build.properties"/>
+
+  <property name="app.name"      value="CookieJar"/>
+  <property name="app.version"   value="0.2-alpha"/>
+  <property name="build.home"    value="${basedir}/src/main/webapp/WEB-INF/classes"/>
+  <property name="dist.home"     value="${basedir}/dist"/>
+  <property name="docs.home"     value="${dist.home}/docs"/>
+  <property name="src.home"      value="${basedir}/src/main/java"/>
+
+  <property name="compile.debug"       value="true"/>
+  <property name="compile.deprecation" value="false"/>
+  <property name="compile.optimize"    value="true"/>
+  <property name="compile.verbose"     value="false"/>
+
+  <fileset id="lib.jars" dir="../..">
+    <include name="lib/*.jar"/>
+  </fileset>
+
+  <path id="compile.classpath">
+    <pathelement location="../../core/dist/oauth-${app.version}.jar"/>
+    <fileset refid="lib.jars"/>
+  </path>
+
+  <target name="all"
+          depends="clean,compile"
+          description="Clean build and dist directories, then compile"/>
+
+  <target name="clean"
+          description="Delete old build and dist directories">
+    <delete dir="${build.home}"/>
+    <delete dir="${dist.home}"/>
+  </target>
+
+  <target name="compile"
+          description="Compile Java sources">
+    <!-- Compile Java classes as necessary -->
+    <mkdir dir="${build.home}"/>
+    <javac destdir="${build.home}"
+           debug="${compile.debug}"
+           deprecation="${compile.deprecation}"
+           optimize="${compile.optimize}"
+           verbose="${compile.verbose}">
+        <classpath refid="compile.classpath"/>
+        <src path="${src.home}"/>
+    </javac>
+
+    <!-- Copy application resources -->
+    <copy todir="${build.home}">
+      <fileset dir="${src.home}" excludes="**/*.java"/>
+    </copy>
+  </target>
+
+  <target name="war"
+          depends="compile"
+          description="Create .war file">
+    <mkdir dir="${dist.home}"/>
+    <war destfile="${dist.home}/${app.name}.war"
+         basedir="${build.home}"
+         webxml="src/main/webapp/WEB-INF/web.xml">
+      <lib refid="lib.jars"/>
+    </war>
+  </target>
+
+  <target name="javadoc"
+          depends="compile"
+          description="Create Javadoc API documentation">
+    <mkdir dir="${docs.home}"/>
+    <javadoc sourcepath="${src.home}"
+             destdir="${docs.home}"
+             packagenames="*">
+      <classpath refid="compile.classpath"/>
+    </javadoc>
+  </target>
+
+  <target name="dist"
+          depends="war,javadoc"
+          description="Create binary distribution">
+  </target>
+
+</project>
