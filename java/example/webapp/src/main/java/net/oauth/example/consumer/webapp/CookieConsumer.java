@@ -22,10 +22,8 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import javax.servlet.ServletConfig;
@@ -33,17 +31,14 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import net.oauth.OAuth;
+import net.oauth.OAuthAccessor;
 import net.oauth.OAuthConsumer;
-import net.oauth.OAuthMessage;
 import net.oauth.OAuthProblemException;
 import net.oauth.OAuthServiceProvider;
 import net.oauth.client.OAuthHttpClient;
 import net.oauth.server.OAuthServlet;
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.HttpMethod;
-import org.apache.commons.httpclient.methods.GetMethod;
-import org.apache.commons.httpclient.methods.PostMethod;
-import org.apache.commons.httpclient.methods.StringRequestEntity;
 
 /**
  * Utility methods for consumers that store tokens and secrets in cookies. Each
@@ -58,13 +53,14 @@ public class CookieConsumer {
 
     public static final String SIGNATURE_METHOD = "HMAC-SHA1";
 
-    public static HttpClientPool httpClientPool = new HttpClientPool() {
-        // This trivial 'pool' simply allocates a new client every time.
-        // More efficient implementations are possible.
-        public HttpClient getHttpClient(URL server) {
-            return new HttpClient();
-        }
-    };
+    private static OAuthHttpClient client = new OAuthHttpClient(
+            new HttpClientPool() {
+                // This trivial 'pool' simply allocates a new client every time.
+                // More efficient implementations are possible.
+                public HttpClient getHttpClient(URL server) {
+                    return new HttpClient();
+                }
+            });
 
     private static Properties consumerProperties = null;
 
@@ -123,61 +119,61 @@ public class CookieConsumer {
     /**
      * Get the access token and token secret for the given consumer. Get them
      * from cookies if possible; otherwise obtain them from the service
-     * provider. In the latter case, this method throws RedirectException.
+     * provider. In the latter case, throw RedirectException.
      */
-    public static CookieMap getCredentials(HttpServletRequest request,
+    public static OAuthAccessor getAccessor(HttpServletRequest request,
             HttpServletResponse response, OAuthConsumer consumer)
             throws Exception {
-        String consumerName = (String) consumer.getProperty("name");
         CookieMap cookies = new CookieMap(request, response);
-        String accessToken = cookies.get(consumerName + ".accessToken");
-        if (accessToken == null) {
-            CookieConsumer.getAccessToken(request, consumer, cookies);
+        OAuthAccessor accessor = newAccessor(consumer, cookies);
+        if (accessor.accessToken == null) {
+            getAccessToken(request, cookies, accessor);
         }
-        return cookies;
+        return accessor;
     }
 
-    public static void getAccessToken(HttpServletRequest request,
-            OAuthConsumer consumer, CookieMap cookies) throws Exception {
-        HttpMethod method = invoke(consumer,
-                consumer.serviceProvider.requestTokenURL, null,
-                (List<OAuth.Parameter>) null);
-        String responseBody = method.getResponseBodyAsString();
-        final Map<String, String> t = OAuth.newMap(OAuth
-                .decodeForm(responseBody));
-        String requestToken = t.get("oauth_token");
-        String tokenSecret = t.get("oauth_token_secret");
+    private static OAuthAccessor newAccessor(OAuthConsumer consumer,
+            CookieMap cookies) throws Exception {
+        OAuthAccessor accessor = new OAuthAccessor(consumer);
         String consumerName = (String) consumer.getProperty("name");
-        if (requestToken != null) {
-            cookies.put(consumerName + ".requestToken", requestToken);
-            cookies.put(consumerName + ".tokenSecret", tokenSecret);
-            String authorizationURL = consumer.serviceProvider.userAuthorizationURL;
-            if (authorizationURL.startsWith("/")) {
-                authorizationURL = (new URL(new URL(request.getRequestURL()
-                        .toString()), request.getContextPath()
-                        + authorizationURL)).toString();
-            }
-            URL callbackURL = new URL(new URL(request.getRequestURL()
-                    .toString()), request.getContextPath() + Callback.PATH);
-            throw new RedirectException(OAuth.addParameters(authorizationURL //
-                    , "oauth_token", requestToken //
-                    , "oauth_callback", OAuth.addParameters(callbackURL
-                            .toString() //
-                            , "consumer", consumerName //
-                            , "returnTo", getRequestPath(request) //
-                            )));
+        accessor.requestToken = cookies.get(consumerName + ".requestToken");
+        accessor.accessToken = cookies.get(consumerName + ".accessToken");
+        accessor.tokenSecret = cookies.get(consumerName + ".tokenSecret");
+        return accessor;
+    }
+
+    /**
+     * Get a fresh access token from the service provider.
+     * 
+     * @throws RedirectException
+     *             to obtain authorization
+     */
+    private static void getAccessToken(HttpServletRequest request,
+            CookieMap cookies, OAuthAccessor accessor) throws Exception {
+        client.getRequestToken(accessor);
+        String consumerName = (String) accessor.consumer.getProperty("name");
+        cookies.put(consumerName + ".requestToken", accessor.requestToken);
+        cookies.put(consumerName + ".tokenSecret", accessor.tokenSecret);
+        String authorizationURL = accessor.consumer.serviceProvider.userAuthorizationURL;
+        if (authorizationURL.startsWith("/")) {
+            authorizationURL = (new URL(new URL(request.getRequestURL()
+                    .toString()), request.getContextPath() + authorizationURL))
+                    .toString();
         }
-        OAuthProblemException problem = new OAuthProblemException(
-                "parameter_absent");
-        problem.setParameter("oauth_parameters_absent", "oauth_token");
-        problem.getParameters().putAll(
-                OAuthHttpClient.getExchange(method, responseBody));
-        throw problem;
+        URL callbackURL = new URL(new URL(request.getRequestURL().toString()),
+                request.getContextPath() + Callback.PATH);
+        throw new RedirectException(OAuth.addParameters(authorizationURL //
+                , "oauth_token", accessor.requestToken //
+                , "oauth_callback", OAuth.addParameters(callbackURL.toString() //
+                        , "consumer", consumerName //
+                        , "returnTo", getRequestPath(request) //
+                        )));
     }
 
     /** Reconstruct the requested URL path, complete with query string (if any). */
     private static String getRequestPath(HttpServletRequest request)
             throws MalformedURLException {
+
         URL url = new URL(OAuthServlet.getRequestURL(request));
         StringBuilder path = new StringBuilder(url.getPath());
         String queryString = url.getQuery();
@@ -187,72 +183,15 @@ public class CookieConsumer {
         return path.toString();
     }
 
-    public static HttpMethod invoke(OAuthConsumer consumer,
-            CookieMap credentials, String url,
-            List<? extends Map.Entry> parameters) throws Exception {
-        String consumerName = (String) consumer.getProperty("name");
-        String accessToken = credentials.get(consumerName + ".accessToken");
-        String tokenSecret = null;
-        List<Map.Entry> parms = new ArrayList<Map.Entry>(parameters);
-        if (accessToken != null) {
-            parms.add(new OAuth.Parameter("oauth_token", accessToken));
-            tokenSecret = credentials.get(consumerName + ".tokenSecret");
-        }
-        return invoke(consumer, url, tokenSecret, parms);
+    public static HttpMethod invoke(OAuthAccessor accessor, String url,
+            Collection<? extends Map.Entry> parameters) throws Exception {
+        return client.invoke(accessor, url, parameters);
     }
 
     public static HttpMethod invoke(OAuthConsumer consumer, String url,
             String tokenSecret, Collection<? extends Map.Entry> parameters)
             throws Exception {
-        Collection<Map.Entry> parms;
-        if (parameters == null) {
-            parms = new ArrayList<Map.Entry>(6);
-        } else {
-            parms = new ArrayList<Map.Entry>(parameters);
-        }
-        Map<String, String> pMap = OAuth.newMap(parms);
-        if (pMap.get("oauth_consumer_key") == null) {
-            parms.add(new OAuth.Parameter("oauth_consumer_key",
-                    consumer.consumerKey));
-        }
-        String httpMethod = (String) consumer.getProperty("HTTP method");
-        if (httpMethod == null) {
-            httpMethod = "GET";
-        }
-        String signatureMethod = pMap.get("oauth_signature_method");
-        if (signatureMethod == null) {
-            signatureMethod = (String) consumer
-                    .getProperty("oauth_signature_method");
-            if (signatureMethod == null) {
-                signatureMethod = SIGNATURE_METHOD;
-            }
-            parms.add(new OAuth.Parameter("oauth_signature_method",
-                    signatureMethod));
-        }
-        parms.add(new OAuth.Parameter("oauth_timestamp", (System
-                .currentTimeMillis() / 1000)
-                + ""));
-        parms.add(new OAuth.Parameter("oauth_nonce", System.nanoTime() + ""));
-        OAuthMessage message = new OAuthMessage(httpMethod, url, parms);
-        message.sign(consumer, tokenSecret);
-        String form = OAuth.formEncode(message.getParameters());
-        HttpMethod method;
-        if ("GET".equals(message.httpMethod)) {
-            method = new GetMethod(url);
-            method.setQueryString(form);
-            // method.addRequestHeader("Authorization", message
-            // .getAuthorizationHeader(serviceProvider.userAuthorizationURL));
-            method.setFollowRedirects(false);
-        } else {
-            PostMethod post = new PostMethod(url);
-            post.setRequestEntity(new StringRequestEntity(form,
-                    OAuth.FORM_ENCODED, null));
-            method = post;
-        }
-        httpClientPool.getHttpClient(new URL(method.getURI().toString()))
-                .executeMethod(method);
-        OAuthHttpClient.checkResponse(method);
-        return method;
+        return client.invoke(consumer, url, tokenSecret, parameters);
     }
 
     public static void handleException(Exception e, HttpServletRequest request,
@@ -270,8 +209,11 @@ public class CookieConsumer {
             String problem = p.getProblem();
             if (consumer != null && RECOVERABLE_PROBLEMS.contains(problem)) {
                 try {
-                    CookieConsumer.getAccessToken(request, consumer,
-                            new CookieMap(request, response));
+                    CookieMap cookies = new CookieMap(request, response);
+                    OAuthAccessor accessor = newAccessor(consumer, cookies);
+                    getAccessToken(request, cookies, accessor);
+                    // getAccessToken(request, consumer,
+                    // new CookieMap(request, response));
                 } catch (Exception e2) {
                     handleException(e2, request, response, null);
                 }

@@ -23,6 +23,7 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import net.oauth.OAuthAccessor;
 import net.oauth.OAuthConsumer;
 import org.apache.commons.httpclient.HttpMethod;
 
@@ -50,12 +51,11 @@ public class TwitterConsumer extends HttpServlet {
     public void doGet(HttpServletRequest request, HttpServletResponse response)
             throws IOException, ServletException {
         try {
-            CookieMap credentials = CookieConsumer.getCredentials(request,
+            OAuthAccessor accessor = CookieConsumer.getAccessor(request,
                     response, consumer);
             HttpMethod result = CookieConsumer
                     .invoke(
-                            consumer,
-                            credentials,
+                            accessor,
                             "http://twitter.com/statuses/friends_timeline/jmkristian.xml",
                             null);
             String responseBody = result.getResponseBodyAsString();

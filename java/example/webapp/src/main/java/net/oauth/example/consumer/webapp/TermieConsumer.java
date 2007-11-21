@@ -24,6 +24,7 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import net.oauth.OAuth;
+import net.oauth.OAuthAccessor;
 import net.oauth.OAuthConsumer;
 import net.oauth.OAuthMessage;
 import net.oauth.server.OAuthServlet;
@@ -55,30 +56,27 @@ public class TermieConsumer extends HttpServlet {
     public void doGet(HttpServletRequest request, HttpServletResponse response)
             throws IOException, ServletException {
         try {
-            CookieMap credentials = CookieConsumer.getCredentials(request,
+            OAuthAccessor accessor = CookieConsumer.getAccessor(request,
                     response, consumer);
-            String accessToken = credentials.get(NAME + ".accessToken");
-            String tokenSecret = credentials.get(NAME + ".tokenSecret");
             OAuthMessage message = OAuthServlet.getMessage(request, null);
-            message
-                    .addParameter(new OAuth.Parameter("oauth_token",
-                            accessToken));
+            message.addParameter(new OAuth.Parameter("oauth_token",
+                    accessor.accessToken));
             response.setContentType("text/plain");
             PrintWriter out = response.getWriter();
             out.println("term.ie said:");
             // Try it twice:
-            out.println(invoke(tokenSecret, message));
-            out.println(invoke(tokenSecret, message));
+            out.println(invoke(accessor, message));
+            out.println(invoke(accessor, message));
         } catch (Exception e) {
             CookieConsumer.handleException(e, request, response, consumer);
         }
     }
 
-    private String invoke(String tokenSecret, OAuthMessage message)
+    private String invoke(OAuthAccessor accessor, OAuthMessage message)
             throws Exception {
-        HttpMethod result = CookieConsumer.invoke(consumer,
-                "http://term.ie/oauth/example/echo_api.php", tokenSecret,
-                message.getParameters());
+        HttpMethod result = CookieConsumer.invoke(accessor,
+                "http://term.ie/oauth/example/echo_api.php", message
+                        .getParameters());
         String responseBody = result.getResponseBodyAsString();
         return responseBody;
     }
