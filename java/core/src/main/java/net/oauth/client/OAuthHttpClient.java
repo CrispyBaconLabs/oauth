@@ -105,7 +105,7 @@ public class OAuthHttpClient {
                 + ""));
         parms.add(new OAuth.Parameter("oauth_nonce", System.nanoTime() + ""));
         OAuthMessage message = new OAuthMessage(httpMethod, url, parms);
-        message.sign(consumer, accessor.tokenSecret);
+        message.sign(accessor);
         String form = OAuth.formEncode(message.getParameters());
         HttpMethod method;
         if ("GET".equals(message.httpMethod)) {
