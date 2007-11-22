@@ -36,6 +36,7 @@ import net.oauth.OAuthConsumer;
 import net.oauth.OAuthProblemException;
 import net.oauth.OAuthServiceProvider;
 import net.oauth.client.HttpClientPool;
+import net.oauth.client.OAuthClient;
 import net.oauth.client.OAuthHttpClient;
 import net.oauth.server.OAuthServlet;
 import org.apache.commons.httpclient.HttpClient;
@@ -51,7 +52,7 @@ public class CookieConsumer {
 
     public static final Collection<OAuthConsumer> ALL_CONSUMERS = new HashSet<OAuthConsumer>();
 
-    public static final OAuthHttpClient CLIENT = new OAuthHttpClient(
+    public static final OAuthClient CLIENT = new OAuthHttpClient(
             new HttpClientPool() {
                 // This trivial 'pool' simply allocates a new client every time.
                 // More efficient implementations are possible.

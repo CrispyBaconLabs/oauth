@@ -28,9 +28,7 @@ import net.oauth.OAuthAccessor;
 import net.oauth.OAuthConsumer;
 import net.oauth.OAuthMessage;
 import net.oauth.OAuthProblemException;
-import net.oauth.client.OAuthHttpClient;
 import net.oauth.server.OAuthServlet;
-import org.apache.commons.httpclient.HttpMethod;
 
 /**
  * An OAuth callback handler.
@@ -85,12 +83,11 @@ public class Callback extends HttpServlet {
                 problem.setParameter("oauth_expected_token", expectedToken);
                 throw problem;
             }
-            HttpMethod result = CookieConsumer.CLIENT.invoke(accessor,
+            OAuthMessage result = CookieConsumer.CLIENT.invoke(accessor,
                     consumer.serviceProvider.accessTokenURL, OAuth.newList(
                             "oauth_token", requestToken));
-            String responseBody = result.getResponseBodyAsString();
-            Map<String, String> responseParameters = OAuth.newMap(OAuth
-                    .decodeForm(responseBody));
+            Map<String, String> responseParameters = OAuth.newMap(result
+                    .getParameters());
             accessor.accessToken = responseParameters.get("oauth_token");
             accessor.tokenSecret = responseParameters.get("oauth_token_secret");
             if (accessor.accessToken != null) {
@@ -110,8 +107,7 @@ public class Callback extends HttpServlet {
             OAuthProblemException problem = new OAuthProblemException(
                     "parameter_absent");
             problem.setParameter("oauth_parameters_absent", "oauth_token");
-            problem.getParameters().putAll(
-                    OAuthHttpClient.getExchange(result, responseBody));
+            problem.getParameters().putAll(result.getDump());
             throw problem;
         } catch (Exception e) {
             CookieConsumer.handleException(e, request, response, consumer);

@@ -26,7 +26,7 @@ import javax.servlet.http.HttpServletResponse;
 import net.oauth.OAuth;
 import net.oauth.OAuthAccessor;
 import net.oauth.OAuthConsumer;
-import org.apache.commons.httpclient.HttpMethod;
+import net.oauth.OAuthMessage;
 
 /**
  * A trivial consumer of the 'tags' service at Ma.gnolia.
@@ -54,10 +54,10 @@ public class MagnoliaConsumer extends HttpServlet {
         try {
             OAuthAccessor accessor = CookieConsumer.getAccessor(request,
                     response, consumer);
-            HttpMethod result = CookieConsumer.CLIENT.invoke(accessor,
+            OAuthMessage result = CookieConsumer.CLIENT.invoke(accessor,
                     "http://ma.gnolia.com/api/rest/2/tags_find", OAuth.newList(
                             "person", System.getProperty("user.name")));
-            String responseBody = result.getResponseBodyAsString();
+            String responseBody = result.getBodyAsString();
             response.setContentType("text/plain");
             PrintWriter out = response.getWriter();
             out.println("ma.gnolia said:");

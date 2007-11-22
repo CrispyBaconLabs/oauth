@@ -25,7 +25,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import net.oauth.OAuthAccessor;
 import net.oauth.OAuthConsumer;
-import org.apache.commons.httpclient.HttpMethod;
+import net.oauth.OAuthMessage;
 
 /**
  * A trivial consumer of the 'friends_timeline' service at Twitter.
@@ -53,12 +53,12 @@ public class TwitterConsumer extends HttpServlet {
         try {
             OAuthAccessor accessor = CookieConsumer.getAccessor(request,
                     response, consumer);
-            HttpMethod result = CookieConsumer.CLIENT
+            OAuthMessage result = CookieConsumer.CLIENT
                     .invoke(
                             accessor,
                             "http://twitter.com/statuses/friends_timeline/jmkristian.xml",
                             null);
-            String responseBody = result.getResponseBodyAsString();
+            String responseBody = result.getBodyAsString();
             response.setContentType("text/plain");
             PrintWriter out = response.getWriter();
             out.println("twitter said:");

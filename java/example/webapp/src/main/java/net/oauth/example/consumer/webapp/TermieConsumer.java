@@ -28,7 +28,6 @@ import net.oauth.OAuthAccessor;
 import net.oauth.OAuthConsumer;
 import net.oauth.OAuthMessage;
 import net.oauth.server.OAuthServlet;
-import org.apache.commons.httpclient.HttpMethod;
 
 /**
  * A trivial consumer of the 'echo' service at term.ie.
@@ -74,10 +73,10 @@ public class TermieConsumer extends HttpServlet {
 
     private String invoke(OAuthAccessor accessor, OAuthMessage message)
             throws Exception {
-        HttpMethod result = CookieConsumer.CLIENT.invoke(accessor,
+        OAuthMessage result = CookieConsumer.CLIENT.invoke(accessor,
                 "http://term.ie/oauth/example/echo_api.php", message
                         .getParameters());
-        String responseBody = result.getResponseBodyAsString();
+        String responseBody = result.getBodyAsString();
         return responseBody;
     }
 
