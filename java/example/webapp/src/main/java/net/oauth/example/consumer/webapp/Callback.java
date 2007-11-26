@@ -54,12 +54,7 @@ public class Callback extends HttpServlet {
                     request, null);
             requestMessage.requireParameters("consumer");
             final String consumerName = requestMessage.getParameter("consumer");
-            for (OAuthConsumer c : CookieConsumer.ALL_CONSUMERS) {
-                if (c.getProperty("name").equals(consumerName)) {
-                    consumer = c;
-                    break;
-                }
-            }
+            consumer = CookieConsumer.getConsumer(consumerName, null);
             final CookieMap cookies = new CookieMap(request, response);
             final OAuthAccessor accessor = CookieConsumer.newAccessor(consumer,
                     cookies);

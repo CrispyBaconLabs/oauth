@@ -17,24 +17,24 @@
 package net.oauth.example.consumer.webapp;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
-import java.util.Map;
+import java.util.List;
 import java.util.Properties;
-import javax.servlet.ServletConfig;
+import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import net.oauth.ConsumerProperties;
 import net.oauth.OAuth;
 import net.oauth.OAuthAccessor;
 import net.oauth.OAuthConsumer;
 import net.oauth.OAuthProblemException;
-import net.oauth.OAuthServiceProvider;
 import net.oauth.client.HttpClientPool;
 import net.oauth.client.OAuthClient;
 import net.oauth.client.OAuthHttpClient;
@@ -43,14 +43,12 @@ import org.apache.commons.httpclient.HttpClient;
 
 /**
  * Utility methods for consumers that store tokens and secrets in cookies. Each
- * consumer has a name, and its credentials are stored in cookies named
- * [name].requestToken, [name].accessToken and [name].tokenSecret.
+ * consumer has a name, and its accessors' credentials are stored in cookies
+ * named [name].requestToken, [name].accessToken and [name].tokenSecret.
  * 
  * @author John Kristian
  */
 public class CookieConsumer {
-
-    public static final Collection<OAuthConsumer> ALL_CONSUMERS = new HashSet<OAuthConsumer>();
 
     public static final OAuthClient CLIENT = new OAuthHttpClient(
             new HttpClientPool() {
@@ -63,55 +61,39 @@ public class CookieConsumer {
 
     private static Properties consumerProperties = null;
 
-    public static synchronized OAuthConsumer newConsumer(String name,
-            ServletConfig config) throws IOException {
-        Properties p = null;
+    private static ConsumerProperties consumers = null;
+
+    public static OAuthConsumer getConsumer(String name, ServletContext context)
+            throws IOException {
         synchronized (CookieConsumer.class) {
-            p = consumerProperties;
-            if (p == null) {
-                p = new Properties();
+            if (consumers == null) {
                 String resourceName = "/"
                         + CookieConsumer.class.getPackage().getName().replace(
                                 ".", "/") + "/consumer.properties";
-                URL resource = CookieConsumer.class.getClassLoader()
-                        .getResource(resourceName);
-                if (resource == null) {
-                    throw new IOException("resource not found: " + resourceName);
+                consumerProperties = ConsumerProperties
+                        .getProperties(ConsumerProperties.getResource(
+                                resourceName, CookieConsumer.class
+                                        .getClassLoader()));
+                consumers = new ConsumerProperties(consumerProperties);
+            }
+        }
+        if (context != null) {
+            synchronized (consumerProperties) {
+                String key = name + ".callbackURL";
+                String value = consumerProperties.getProperty(key);
+                if (value == null) {
+                    // Compute the callbackURL from the servlet context.
+                    URL resource = context.getResource(Callback.PATH);
+                    if (resource != null) {
+                        value = resource.toExternalForm();
+                    } else {
+                        value = Callback.PATH;
+                    }
+                    consumerProperties.setProperty(key, value);
                 }
-                InputStream stream = resource.openStream();
-                try {
-                    p.load(stream);
-                } finally {
-                    stream.close();
-                }
-            }
-            consumerProperties = p;
-        }
-        OAuthServiceProvider serviceProvider = new OAuthServiceProvider(p
-                .getProperty(name + ".serviceProvider.requestTokenURL"), p
-                .getProperty(name + ".serviceProvider.userAuthorizationURL"), p
-                .getProperty(name + ".serviceProvider.accessTokenURL"));
-        String callbackURL = p.getProperty(name + ".callbackURL");
-        if (callbackURL == null) {
-            URL resource = config.getServletContext()
-                    .getResource(Callback.PATH);
-            if (resource != null) {
-                callbackURL = resource.toExternalForm();
-            } else {
-                callbackURL = Callback.PATH;
             }
         }
-        OAuthConsumer consumer = new OAuthConsumer(callbackURL //
-                , p.getProperty(name + ".consumerKey") //
-                , p.getProperty(name + ".consumerSecret"), serviceProvider);
-        consumer.setProperty("name", name);
-        for (Map.Entry prop : p.entrySet()) {
-            String propName = (String) prop.getKey();
-            if (propName.startsWith(name + ".consumer.")) {
-                String c = propName.substring(name.length() + 10);
-                consumer.setProperty(c, prop.getValue());
-            }
-        }
+        OAuthConsumer consumer = consumers.getConsumer(name);
         return consumer;
     }
 
@@ -131,6 +113,10 @@ public class CookieConsumer {
         return accessor;
     }
 
+    /**
+     * Construct an accessor from cookies. The resulting accessor won't
+     * necessarily have any tokens.
+     */
     static OAuthAccessor newAccessor(OAuthConsumer consumer, CookieMap cookies)
             throws Exception {
         OAuthAccessor accessor = new OAuthAccessor(consumer);
@@ -139,6 +125,17 @@ public class CookieConsumer {
         accessor.accessToken = cookies.get(consumerName + ".accessToken");
         accessor.tokenSecret = cookies.get(consumerName + ".tokenSecret");
         return accessor;
+    }
+
+    /** Remove all the cookies that contain accessors' data. */
+    public static void removeAccessors(CookieMap cookies) {
+        List<String> names = new ArrayList<String>(cookies.keySet());
+        for (String name : names) {
+            if (name.endsWith(".requestToken") || name.endsWith(".accessToken")
+                    || name.endsWith(".tokenSecret")) {
+                cookies.remove(name);
+            }
+        }
     }
 
     /**
@@ -182,6 +179,11 @@ public class CookieConsumer {
         return path.toString();
     }
 
+    /**
+     * Handle an exception that occurred while processing an HTTP request.
+     * Depending on the exception, either send a response, redirect the client
+     * or propagate an exception.
+     */
     public static void handleException(Exception e, HttpServletRequest request,
             HttpServletResponse response, OAuthConsumer consumer)
             throws IOException, ServletException {
@@ -243,38 +245,6 @@ public class CookieConsumer {
         RECOVERABLE_PROBLEMS.add("permission_unknown");
         // In the case of permission_unknown, getting a fresh token
         // will cause the Service Provider to ask the User to decide.
-    }
-
-    /** Return the HTML representation of the given plain text. */
-    public static String htmlEncode(Object o) {
-        if (o == null) {
-            return null;
-        }
-        String s = o.toString();
-        int len = s.length();
-        // start with a big enough buffer, avoid reallocations
-        StringBuilder sb = new StringBuilder(2 * len);
-        for (int i = 0; i < len; i++) {
-            char c = s.charAt(i);
-            switch (c) {
-            case '<':
-                sb.append("&lt;");
-                break;
-            case '>':
-                sb.append("&gt;");
-                break;
-            case '&':
-                sb.append("&amp;");
-                break;
-            case '"':
-                sb.append("&quot;");
-                break;
-            default:
-                sb.append(c);
-                break;
-            }
-        }
-        return sb.toString();
     }
 
 }

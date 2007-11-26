@@ -18,7 +18,6 @@ package net.oauth.example.consumer.webapp;
 
 import java.io.IOException;
 import java.io.PrintWriter;
-import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -35,23 +34,15 @@ import net.oauth.OAuthMessage;
  */
 public class MagnoliaConsumer extends HttpServlet {
 
-    @Override
-    public void init(ServletConfig config) throws ServletException {
-        super.init(config);
-        try {
-            consumer = CookieConsumer.newConsumer("ma.gnolia", config);
-            CookieConsumer.ALL_CONSUMERS.add(consumer);
-        } catch (IOException e) {
-            throw new ServletException(e);
-        }
-    }
-
-    private OAuthConsumer consumer;
+    private static final String CONSUMER_NAME = "ma.gnolia";
 
     @Override
     public void doGet(HttpServletRequest request, HttpServletResponse response)
             throws IOException, ServletException {
+        OAuthConsumer consumer = null;
         try {
+            consumer = CookieConsumer.getConsumer(CONSUMER_NAME,
+                    getServletContext());
             OAuthAccessor accessor = CookieConsumer.getAccessor(request,
                     response, consumer);
             OAuthMessage result = CookieConsumer.CLIENT.invoke(accessor,
@@ -60,7 +51,7 @@ public class MagnoliaConsumer extends HttpServlet {
             String responseBody = result.getBodyAsString();
             response.setContentType("text/plain");
             PrintWriter out = response.getWriter();
-            out.println("ma.gnolia said:");
+            out.println(CONSUMER_NAME + " said:");
             out.print(responseBody);
         } catch (Exception e) {
             CookieConsumer.handleException(e, request, response, consumer);

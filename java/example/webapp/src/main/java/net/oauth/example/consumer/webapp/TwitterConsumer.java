@@ -18,7 +18,6 @@ package net.oauth.example.consumer.webapp;
 
 import java.io.IOException;
 import java.io.PrintWriter;
-import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -35,22 +34,12 @@ import net.oauth.OAuthMessage;
 public class TwitterConsumer extends HttpServlet {
 
     @Override
-    public void init(ServletConfig config) throws ServletException {
-        super.init(config);
-        try {
-            consumer = CookieConsumer.newConsumer("twitter", config);
-            CookieConsumer.ALL_CONSUMERS.add(consumer);
-        } catch (IOException e) {
-            throw new ServletException(e);
-        }
-    }
-
-    private OAuthConsumer consumer;
-
-    @Override
     public void doGet(HttpServletRequest request, HttpServletResponse response)
             throws IOException, ServletException {
+        OAuthConsumer consumer = null;
         try {
+            consumer = CookieConsumer.getConsumer("twitter",
+                    getServletContext());
             OAuthAccessor accessor = CookieConsumer.getAccessor(request,
                     response, consumer);
             OAuthMessage result = CookieConsumer.CLIENT

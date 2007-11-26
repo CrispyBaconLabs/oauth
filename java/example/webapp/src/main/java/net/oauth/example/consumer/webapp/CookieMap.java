@@ -16,8 +16,10 @@
 
 package net.oauth.example.consumer.webapp;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -72,6 +74,11 @@ public class CookieMap {
             response.addCookie(c);
             name2value.remove(name);
         }
+    }
+
+    public Set<String> keySet() {
+        Set<String> set = Collections.unmodifiableSet(name2value.keySet());
+        return set;
     }
 
     public String toString() {

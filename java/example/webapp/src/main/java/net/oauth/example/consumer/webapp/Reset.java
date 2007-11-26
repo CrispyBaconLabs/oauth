@@ -21,30 +21,23 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import net.oauth.OAuthConsumer;
 
 /**
  * @author John Kristian
  */
 public class Reset extends HttpServlet {
 
-    /** Clear all the OAuth cookies and redirect to another page. */
+    /** Clear all the OAuth accessor cookies and redirect to another page. */
     public void doGet(HttpServletRequest request, HttpServletResponse response)
             throws IOException, ServletException {
         try {
-            CookieMap cookies = new CookieMap(request, response);
-            for (OAuthConsumer consumer : CookieConsumer.ALL_CONSUMERS) {
-                String consumerName = (String) consumer.getProperty("name");
-                cookies.remove(consumerName + ".requestToken");
-                cookies.remove(consumerName + ".accessToken");
-                cookies.remove(consumerName + ".tokenSecret");
-            }
+            CookieConsumer.removeAccessors(new CookieMap(request, response));
             String nextPage = request.getParameter("nextPage");
             if (nextPage == null) {
                 nextPage = request.getHeader("Referer");
-            }
-            if (nextPage == null) {
-                nextPage = request.getContextPath(); // home page
+                if (nextPage == null) {
+                    nextPage = request.getContextPath(); // home page
+                }
             }
             throw new RedirectException(nextPage);
         } catch (Exception e) {
