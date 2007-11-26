@@ -16,10 +16,12 @@
 
 package net.oauth.example.consumer.webapp;
 
-import java.io.*;
-
-import javax.servlet.*;
-import javax.servlet.http.*;
+import java.io.IOException;
+import java.io.PrintWriter;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import net.oauth.OAuth;
 import net.oauth.OAuthAccessor;
 import net.oauth.OAuthConsumer;
@@ -31,25 +33,14 @@ import net.oauth.server.OAuthServlet;
  * @author Praveen Alavilli
  */
 public class SampleProviderConsumer extends HttpServlet {
-       private static final String NAME = "sample";
-
-    @Override
-    public void init(ServletConfig config) throws ServletException {
-        super.init(config);
-        try {
-            consumer = CookieConsumer.newConsumer(NAME, config);
-            CookieConsumer.ALL_CONSUMERS.add(consumer);
-        } catch (IOException e) {
-            throw new ServletException(e);
-        }
-    }
-
-    private OAuthConsumer consumer;
+    private static final String NAME = "sample";
 
     @Override
     public void doGet(HttpServletRequest request, HttpServletResponse response)
             throws IOException, ServletException {
+        OAuthConsumer consumer = null;
         try {
+            consumer = CookieConsumer.getConsumer(NAME, getServletContext());
             OAuthAccessor accessor = CookieConsumer.getAccessor(request,
                     response, consumer);
             OAuthMessage message = OAuthServlet.getMessage(request, null);
@@ -78,5 +69,4 @@ public class SampleProviderConsumer extends HttpServlet {
 
     private static final long serialVersionUID = 1L;
 
-    
 }
