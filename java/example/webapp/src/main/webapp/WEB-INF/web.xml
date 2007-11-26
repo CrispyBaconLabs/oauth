@@ -35,6 +35,10 @@
         <servlet-name>UserAuthorizationStub</servlet-name>
         <servlet-class>net.oauth.example.consumer.webapp.UserAuthorizationStub</servlet-class>
     </servlet>
+    <servlet>
+        <servlet-name>SampleProviderConsumer</servlet-name>
+        <servlet-class>net.oauth.example.consumer.webapp.SampleProviderConsumer</servlet-class>
+    </servlet>
     <servlet-mapping>
         <servlet-name>AccountConsumer</servlet-name>
         <url-pattern>/Account</url-pattern>
@@ -62,5 +66,9 @@
     <servlet-mapping>
         <servlet-name>TwitterConsumer</servlet-name>
         <url-pattern>/Twitter</url-pattern>
+    </servlet-mapping>
+    <servlet-mapping>
+        <servlet-name>SampleProviderConsumer</servlet-name>
+        <url-pattern>/SampleProvider</url-pattern>
     </servlet-mapping>
 </web-app>

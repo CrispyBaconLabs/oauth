@@ -1,0 +1,97 @@
+<project name="oauth-provider" default="compile" basedir=".">
+  <property file="build-local.properties"/>
+  <property file="build.properties"/>
+
+  <property name="app.name"      value="oauth-provider"/>
+  <property name="app.version"   value="0.2-alpha"/>
+  <property name="build.home"    value="${basedir}/build"/>
+  <property name="dist.home"     value="${basedir}/dist"/>
+  <property name="docs.home"     value="${dist.home}/docs"/>
+  <property name="src.home"      value="${basedir}/src"/>
+  <property name="web.home"      value="${basedir}/web"/>
+
+  <property name="compile.debug"       value="true"/>
+  <property name="compile.deprecation" value="false"/>
+  <property name="compile.optimize"    value="true"/>
+  <property name="compile.verbose"     value="false"/>
+
+  <fileset id="lib.jars" dir="../..">
+    <include name="lib/*.jar"/>
+  </fileset>
+
+  <path id="compile.classpath">
+    <pathelement location="../../core/dist/oauth-${app.version}.jar"/>
+    <fileset refid="lib.jars"/>
+  </path>
+
+  <target name="all"
+          depends="clean,compile"
+          description="Clean build and dist directories, then compile"/>
+
+  <target name="clean"
+          description="Delete old build and dist directories">
+    <delete dir="${build.home}"/>
+    <delete dir="${dist.home}"/>
+  </target>
+
+  <target name="compile"
+          description="Compile Java sources">
+    <!-- Compile Java classes as necessary -->
+    <mkdir dir="${build.home}"/>
+    <mkdir dir="${build.home}/WEB-INF"/>
+    <mkdir dir="${build.home}/WEB-INF/classes"/>
+    
+    <javac destdir="${build.home}/WEB-INF/classes"
+           debug="${compile.debug}"
+           deprecation="${compile.deprecation}"
+           optimize="${compile.optimize}"
+           verbose="${compile.verbose}"
+           srcdir="${src.home}">
+        <classpath refid="compile.classpath"/>
+    </javac>
+
+    <!-- Copy application resources -->
+    <copy todir="${build.home}/WEB-INF/classes">
+      <fileset dir="${src.home}" excludes="**/*.java"/>
+    </copy>
+    <!-- Copy static content (jsp/images/js/etc..) of this web application -->
+    <copy todir="${build.home}">
+        <fileset dir="${web.home}">
+            <exclude name="**/.*"/>
+        </fileset>
+    </copy>
+    <!-- Copy libraries required -->
+    <mkdir dir="${build.home}/WEB-INF/lib"/>
+    <copy todir="${build.home}/WEB-INF/lib">
+	<fileset dir="../../lib" excludes="servlet-api.jar" />
+    </copy>
+    <copy todir="${build.home}/WEB-INF/lib">
+	<fileset dir="../../core/dist/" includes="*.jar"/>
+    </copy>
+  </target>
+
+  <target name="war"
+          depends="compile"
+          description="Create .war file">
+    <mkdir dir="${dist.home}"/>
+    <!-- Create application JAR file -->
+    <jar basedir="${build.home}" jarfile="${dist.home}/${app.name}.war"/>
+  </target>
+
+  <target name="javadoc"
+          depends="compile"
+          description="Create Javadoc API documentation">
+    <mkdir dir="${docs.home}"/>
+    <javadoc sourcepath="${src.home}"
+             destdir="${docs.home}"
+             packagenames="*">
+      <classpath refid="compile.classpath"/>
+    </javadoc>
+  </target>
+
+  <target name="dist"
+          depends="war,javadoc"
+          description="Create binary distribution">
+  </target>
+
+</project>
