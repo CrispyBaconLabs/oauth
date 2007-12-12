@@ -11,7 +11,7 @@ OAuthConsumer
 OAuthToken
   - token : str
   - secret : str
-  - type : enum("access", "request")
+  #- type : enum("access", "request")
 
 # OAuthSignatureMethod is a strategy class that implements a signature method
 OAuthSignatureMethod
