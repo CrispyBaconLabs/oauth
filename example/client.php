@@ -2,6 +2,10 @@
 require_once("common.inc.php");
 
 $test_server = new TestOAuthServer(new MockOAuthDataStore());
+$sha1_method = new OAuthSignatureMethod_HMAC_SHA1();
+$plaintext_method = new OAuthSignatureMethod_PLAINTEXT();
+$test_server->add_signature_method($sha1_method);
+$test_server->add_signature_method($plaintext_method);
 
 $key = @$_REQUEST['key'];
 $secret = @$_REQUEST['secret'];
@@ -20,9 +24,8 @@ if ($token) {
 
 
 if ($action == "request_token") {
-  $req_req = new OAuthRequest(array(), "GET", $endpoint);
-  $req_req->build_request($test_consumer, NULL);
-  $req_req->sign_request_HMAC_SHA1($test_consumer, NULL);
+  $req_req = OAuthRequest::from_consumer_and_token($test_consumer, NULL, "GET", $endpoint, array());
+  $req_req->sign_request($sha1_method, $test_consumer, NULL);
   if ($dump_request) {
     Header('Content-type: text/plain');
     print "request url: " . $req_req->to_url(). "\n";
@@ -42,9 +45,8 @@ else if ($action == "authorize") {
   Header("Location: $auth_url");
 }
 else if ($action == "access_token") {
-  $acc_req = new OAuthRequest(array(), "GET", $endpoint);
-  $acc_req->build_request($test_consumer, $test_token);
-  $acc_req->sign_request_HMAC_SHA1($test_consumer, $test_token);
+  $acc_req = OAuthRequest::from_consumer_and_token($test_consumer, $test_token, "GET", $endpoint, array());
+  $acc_req->sign_request($sha1_method, $test_consumer, $test_token);
   if ($dump_request) {
     Header('Content-type: text/plain');
     print "request url: " . $acc_req->to_url() . "\n";
@@ -58,17 +60,14 @@ else if ($action == "access_token") {
 
 $acc_token = new OAuthConsumer("accesskey", "accesssecret", 1);
 
-$req_req = new OAuthRequest(array(), "GET", $base_url . "/request_token.php");
-$req_req->build_request($test_consumer, NULL);
-$req_req->sign_request_HMAC_SHA1($test_consumer, NULL);
+$req_req = OAuthRequest::from_consumer_and_token($test_consumer, NULL, "GET", $base_url . "/request_token.php", array());
+$req_req->sign_request($sha1_method, $test_consumer, NULL);
 
-$acc_req = new OAuthRequest(array(), "GET", $base_url . "/access_token.php");
-$acc_req->build_request($test_consumer, $req_token);
-$acc_req->sign_request_HMAC_SHA1($test_consumer, $req_token);
+$acc_req = OAuthRequest::from_consumer_and_token($test_consumer, $req_token, "GET", $base_url . "/access_token.php");
+$acc_req->sign_request($sha1_method, $test_consumer, $req_token);
 
-$echo_req = new OAuthRequest(array("method"=> "foo", "bar" => "baz"), "GET", $base_url . "/echo_api.php");
-$echo_req->build_request($test_consumer, $acc_token);
-$echo_req->sign_request_HMAC_SHA1($test_consumer, $acc_token);
+$echo_req = OAuthRequest::from_consumer_and_token($test_consumer, $acc_token, "GET", $base_url . "/echo_api.php", array("method"=> "foo", "bar" => "baz"));
+$echo_req->sign_request($sha1_method, $test_consumer, $acc_token);
 
 ?>
 <html>
