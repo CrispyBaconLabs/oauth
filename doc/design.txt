@@ -11,10 +11,12 @@ OAuthConsumer
 OAuthToken
   - token : str
   - secret : str
-  #- type : enum("access", "request")
+  - to_string() -> str
+  - (static) from_string() -> OAuthToken
 
 # OAuthSignatureMethod is a strategy class that implements a signature method
 OAuthSignatureMethod
+  - get_name() -> str
   - build_signature (OAuthRequest, OAuthConsumer, OAuthToken) -> str
 
 # OAuthRequest represents the request and can be seriali
@@ -23,6 +25,11 @@ OAuthRequest:
   - set_parameter(str parameter, str value) -> void
     - example parameters: oauth_consumer_key, foo
   - get_parameter(str parameter) -> str
+  - get_parameters() -> dict
+
+  - get_normalized_http_method() -> str
+  - get_normalized_http_url() -> str
+  - get_signable_params() -> dict
 
   - to_header () -> str   # serialize as a header for an HTTPAuth request
   - to_postdata () -> str # serialize as post data for a POST request
