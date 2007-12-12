@@ -127,7 +127,7 @@ class OAuthRequest {/*{{{*/
     // which parameters to use then go for it, for example XMLRPC might want to
     // do this
     if ($parameters) {
-      $req = new OAuthRequest($parameters, $http_method, $http_url);
+      $req = new OAuthRequest($http_method, $http_url, $parameters);
     }
     // next check for the auth header, we need to do some extra stuff
     // if that is the case, namely suck in the parameters from GET or POST
@@ -141,13 +141,13 @@ class OAuthRequest {/*{{{*/
         $req_parameters = $_POST;
       } 
       $parameters = array_merge($header_parameters, $req_parameters);
-      $req = new OAuthRequest($parameters, $http_method, $http_url);
+      $req = new OAuthRequest($http_method, $http_url, $parameters);
     }
     else if ($http_method == "GET") {
-      $req = new OAuthRequest($_GET, $http_method, $http_url);
+      $req = new OAuthRequest($http_method, $http_url, $_GET);
     }
     else if ($http_method == "POST") {
-      $req = new OAuthRequest($_POST, $http_method, $http_url);
+      $req = new OAuthRequest($http_method, $http_url, $_POST);
     }
     return $req;
   }/*}}}*/
@@ -172,9 +172,13 @@ class OAuthRequest {/*{{{*/
   public function set_parameter($name, $value) {
     $this->parameters[$name] = $value;
   }
-  
+
   public function get_parameter($name) {
     return $this->parameters[$name];
+  }
+
+  public function get_parameters() {
+    return $this->parameters;
   }
 
   /**
@@ -304,9 +308,9 @@ class OAuthRequest {/*{{{*/
 }/*}}}*/
 
 class OAuthServer {/*{{{*/
-  private $timestamp_threshold = 300; // in seconds, five minutes
-  private $version = 1.0;             // hi blaine
-  public $signature_methods = array();
+  protected $timestamp_threshold = 300; // in seconds, five minutes
+  protected $version = 1.0;             // hi blaine
+  protected $signature_methods = array();
 
   protected $data_store;
 
@@ -375,7 +379,7 @@ class OAuthServer {/*{{{*/
    * version 1
    */
   private function get_version(&$request) {/*{{{*/
-    $version = @$request->get_parameter("oauth_version");
+    $version = $request->get_parameter("oauth_version");
     if (!$version) {
       $version = 1.0;
     }
@@ -430,10 +434,6 @@ class OAuthServer {/*{{{*/
     );
     if (!$token) {
       throw new OAuthException("Invalid $token_type token: $token_field");
-    }
-    // XXX andy: this should be moved to the data store?
-    if (!$token->authorized) {
-      throw new OAuthException("Unauthorized  $token_type token: $token_field");
     }
     return $token;
   }/*}}}*/
