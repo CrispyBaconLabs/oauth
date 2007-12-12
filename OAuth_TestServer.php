@@ -1,13 +1,16 @@
 <?php //vim: foldmethod=marker
-require_once("OAuth.php");
+//require_once("OAuth.php");
 
 class TestOAuthServer extends OAuthServer {
+  public function get_signature_methods() {
+    return $this->signature_methods;
+  }
 }
 
 /**
  * A mock store for testing
  */
-class MockOAuthStore extends OAuthStore {/*{{{*/
+class MockOAuthDataStore extends OAuthDataStore {/*{{{*/
     private $consumer;
     private $request_token;
     private $access_token;

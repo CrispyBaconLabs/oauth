@@ -33,7 +33,7 @@ class OAuthToken {/*{{{*/
     $this->secret = $secret;
   }/*}}}*/
 
-  _/**
+  /**
    * generates the basic string serialization of a token that a server
    * would respond to request_token and access_token calls with
    */
@@ -84,7 +84,7 @@ class OAuthSignatureMethod_PLAINTEXT extends OAuthSignatureMethod {/*{{{*/
   }/*}}}*/
   public function build_signature($request, $consumer, $token) {/*{{{*/
     $sig = array(
-      urlencode($consumer->secret);
+      urlencode($consumer->secret)
     );
 
     if ($token) {
@@ -103,20 +103,19 @@ class OAuthRequest {/*{{{*/
   private $http_method;
   private $http_url;
   private $base_string;
-  public $version = '1.0';
+  public static $version = '1.0';
 
-  function __construct($parameters, $http_method, $http_url) {/*{{{*/
+  function __construct($http_method, $http_url, $parameters=NULL) {/*{{{*/
+    @$parameters or $parameters = array();
     $this->parameters = $parameters;
     $this->http_method = $http_method;
     $this->http_url = $http_url;
   }/*}}}*/
 
-  
-  
   /**
    * attempt to build up a request from what was passed to the server
    */
-  public static function from_request($parameters=NULL, $http_method=NULL, $http_url=NULL) {/*{{{*/
+  public static function from_request($http_method=NULL, $http_url=NULL, $parameters=NULL) {/*{{{*/
     @$http_url or $http_url = "http://" . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
     @$http_method or $http_method = $_SERVER['REQUEST_METHOD'];
     
@@ -156,17 +155,27 @@ class OAuthRequest {/*{{{*/
   /**
    * pretty much a helper function to set up the request
    */
-  public static function from_consumer_and_token($consumer, $token, $http_method, $http_url) {/*{{{*/
-    $parameters = array("oauth_version" => OAuthRequest::version,
-                        "oauth_nonce" => OAuthRequest::generate_nonce(),
-                        "oauth_timestamp" => OAuthRequest::generate_timestamp(),
-                        "oauth_consumer_key" => $consumer->key);
-    
+  public static function from_consumer_and_token($consumer, $token, $http_method, $http_url, $parameters=NULL) {/*{{{*/
+    @$parameters or $parameters = array();
+    $defaults = array("oauth_version" => OAuthRequest::$version,
+                      "oauth_nonce" => OAuthRequest::generate_nonce(),
+                      "oauth_timestamp" => OAuthRequest::generate_timestamp(),
+                      "oauth_consumer_key" => $consumer->key);
+    $parameters = array_merge($defaults, $parameters);
+
     if ($token) {
       $parameters['oauth_token'] = $token->key;
     }
-    return new OAuthRequest($parameters, $http_method, $http_url);
+    return new OAuthRequest($http_method, $http_url, $parameters);
   }/*}}}*/
+
+  public function set_parameter($name, $value) {
+    $this->parameters[$name] = $value;
+  }
+  
+  public function get_parameter($name) {
+    return $this->parameters[$name];
+  }
 
   /**
    * return a string that consists of all the parameters that need to be signed
@@ -205,7 +214,7 @@ class OAuthRequest {/*{{{*/
    * builds a url usable for a GET request
    */
   public function to_url() {/*{{{*/
-    $out = $this->normalized_http_url() . "?";
+    $out = $this->get_normalized_http_url() . "?";
     $out .= $this->to_postdata();
     return $out;
   }/*}}}*/
@@ -248,7 +257,7 @@ class OAuthRequest {/*{{{*/
   }/*}}}*/
 
   public function build_signature($signature_method, $consumer, $token) {/*{{{*/
-    $signature = $signature_method.build_signature($this, $consumer, $token);
+    $signature = $signature_method->build_signature($this, $consumer, $token);
     return $signature;
   }/*}}}*/
 
@@ -297,9 +306,9 @@ class OAuthRequest {/*{{{*/
 class OAuthServer {/*{{{*/
   private $timestamp_threshold = 300; // in seconds, five minutes
   private $version = 1.0;             // hi blaine
-  private $signature_methods = array();
+  public $signature_methods = array();
 
-  private $data_store;
+  protected $data_store;
 
   function __construct($data_store) {/*{{{*/
     $this->data_store = $data_store;
@@ -508,7 +517,7 @@ class OAuthDataStore {/*{{{*/
 
 /*  A very naive dbm-based oauth storage
  */
-class SimpleOAuthStore extends OAuthStore {/*{{{*/
+class SimpleOAuthDataStore extends OAuthDataStore {/*{{{*/
   private $dbh;
 
   function __construct($path = "oauth.gdbm") {/*{{{*/

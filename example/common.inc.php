@@ -1,4 +1,5 @@
 <?php
+require_once("../OAuth.php");
 require_once("../OAuth_TestServer.php");
 
 /*

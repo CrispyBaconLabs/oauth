@@ -1,23 +1,25 @@
 <?php
 require_once("common.inc.php");
 
-$test_server = new TestOAuthServer(new MockOAuthStore());
+$test_server = new TestOAuthServer(new MockOAuthDataStore());
 
 $test_consumer = new OAuthConsumer("key", "secret", NULL);
 $req_token = new OAuthConsumer("requestkey", "requestsecret", 1);
 $acc_token = new OAuthConsumer("accesskey", "accesssecret", 1);
+$sig_method = new OAuthSignatureMethod_HMAC_SHA1();
+$plaintext_method = new OAuthSignatureMethod_PLAINTEXT();
 
-$req_req = new OAuthRequest(array(), "GET", $base_url . "/request_token.php");
-$req_req->build_request($test_consumer, NULL);
-$req_req->sign_request_HMAC_SHA1($test_consumer, NULL);
+$test_server->add_signature_method($sig_method);
+$test_server->add_signature_method($plaintext_method);
 
-$acc_req = new OAuthRequest(array(), "GET", $base_url . "/access_token.php");
-$acc_req->build_request($test_consumer, $req_token);
-$acc_req->sign_request_HMAC_SHA1($test_consumer, $req_token);
+$req_req = OAuthRequest::from_consumer_and_token($test_consumer, NULL, "GET", $base_url . "/request_token.php");
+$req_req->sign_request($sig_method, $test_consumer, NULL);
 
-$echo_req = new OAuthRequest(array("method"=> "foo%20bar", "bar" => "baz"), "GET", $base_url . "/echo_api.php");
-$echo_req->build_request($test_consumer, $acc_token);
-$echo_req->sign_request_HMAC_SHA1($test_consumer, $acc_token);
+$acc_req = OAuthRequest::from_consumer_and_token($test_consumer, $req_token, "GET", $base_url . "/access_token.php");
+$acc_req->sign_request($sig_method, $test_consumer, $req_token);
+
+$echo_req = OAuthRequest::from_consumer_and_token($test_consumer, $acc_token, "GET", $base_url . "/echo_api.php", array("method"=> "foo%20bar", "bar" => "baz"));
+$echo_req->sign_request($sig_method, $test_consumer, $acc_token);
 
 ?>
 <html>
@@ -81,8 +83,9 @@ A successful request will echo the non-OAuth parameters sent to it, for example:
 <h3>Currently Supported Signature Methods</h3>
 <ul>
 <?php
-foreach ($test_server->signature_methods as $method) {
-  print "<li>$method</li>\n";
+$sig_methods = $test_server->get_signature_methods();
+foreach ($sig_methods as $key => $method) {
+  print "<li>$key</li>\n";
 }
 ?>
 </ul>

@@ -1,7 +1,7 @@
 <?php
 require_once("common.inc.php");
 
-$test_server = new TestOAuthServer(new MockOAuthStore());
+$test_server = new TestOAuthServer(new MockOAuthDataStore());
 
 $key = @$_REQUEST['key'];
 $secret = @$_REQUEST['secret'];
