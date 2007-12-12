@@ -21,7 +21,7 @@ OAuthSignatureMethod
 
 # OAuthRequest represents the request and can be seriali
 OAuthRequest:
-  - OAuthRequest(dict parameters, str http_method, str http_url) -> constructor
+  - OAuthRequest(str http_method, str http_url, [dict parameters]) -> constructor
   - set_parameter(str parameter, str value) -> void
     - example parameters: oauth_consumer_key, foo
   - get_parameter(str parameter) -> str
@@ -36,8 +36,8 @@ OAuthRequest:
   - to_url () -> str      # serialize as a url for a GET request
   - sign_request(OAuthSignatureMethod, OAuthConsumer, OAuthToken) -> void
   - build_signature(OAuthSignatureMethod, OAuthConsumer, OAuthToken) -> str
-  - (static) from_request(dict parameters, str http_method, str http_url)
-  - (static) from_consumer_and_token(OAuthConsumer, OAuthToken) -> OAuthRequest
+  - (static) from_request([str http_method, str http_url, dict parameters])
+  - (static) from_consumer_and_token(OAuthConsumer, OAuthToken, str http_method, str http_url, [dict parameters]) -> OAuthRequest
 
 
 # OAuthServer is a worker to check a requests validity against a data store
