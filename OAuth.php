@@ -310,6 +310,58 @@ class OAuthServer {/*{{{*/
         $signature_method;
   }/*}}}*/
   
+  // high level functions
+
+  /**
+   * process a request_token request
+   * returns the request token on success
+   */
+  public function fetch_request_token(&$request) {/*{{{*/
+    $this->get_version($request);
+
+    $consumer = $this->get_consumer($request);
+
+    // no token required for the initial token request
+    $token = NULL;
+
+    $this->check_signature($request, $consumer, $token);
+
+    $new_token = $this->data_store->new_request_token($consumer);
+
+    return $new_token;
+  }/*}}}*/
+
+  /**
+   * process an access_token request
+   * returns the access token on success
+   */
+  public function fetch_access_token(&$request) {/*{{{*/
+    $this->get_version($request);
+
+    $consumer = $this->get_consumer($request);
+
+    // requires authorized request token
+    $token = $this->get_token($request, $consumer, "request");
+
+    $this->check_signature($request, $consumer, $token);
+
+    $new_token = $this->data_store->new_access_token($token, $consumer);
+
+    return $new_token;
+  }/*}}}*/
+
+  /**
+   * verify an api call, checks all the parameters
+   */
+  public function verify_request(&$request) {/*{{{*/
+    $this->get_version($request);
+    $consumer = $this->get_consumer($request);
+    $token = $this->get_token($request, $consumer, "access");
+    $this->check_signature($request, $consumer, $token);
+    return array($consumer, $token);
+  }/*}}}*/
+
+  // Internals from here
   /**
    * version 1
    */
@@ -424,56 +476,6 @@ class OAuthServer {/*{{{*/
   }/*}}}*/
 
 
-  // high level functions
-
-  /**
-   * process a request_token request
-   * returns the request token on success
-   */
-  public function fetch_request_token(&$request) {/*{{{*/
-    $this->get_version($request);
-
-    $consumer = $this->get_consumer($request);
-
-    // no token required for the initial token request
-    $token = NULL;
-
-    $this->check_signature($request, $consumer, $token);
-
-    $new_token = $this->data_store->new_request_token($consumer);
-
-    return $new_token;
-  }/*}}}*/
-
-  /**
-   * process an access_token request
-   * returns the access token on success
-   */
-  public function fetch_access_token(&$request) {/*{{{*/
-    $this->get_version($request);
-
-    $consumer = $this->get_consumer($request);
-
-    // requires authorized request token
-    $token = $this->get_token($request, $consumer, "request");
-
-    $this->check_signature($request, $consumer, $token);
-
-    $new_token = $this->data_store->new_access_token($token, $consumer);
-
-    return $new_token;
-  }/*}}}*/
-
-  /**
-   * verify an api call, checks all the parameters
-   */
-  function verify_request(&$request) {/*{{{*/
-    $this->get_version($request);
-    $consumer = $this->get_consumer($request);
-    $token = $this->get_token($request, $consumer, "access");
-    $this->check_signature($request, $consumer, $token);
-    return array($consumer, $token);
-  }/*}}}*/
 
 }/*}}}*/
 
