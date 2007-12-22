@@ -93,7 +93,7 @@ class OAuthSignatureMethod_PLAINTEXT extends OAuthSignatureMethod {/*{{{*/
     }
 
     $raw = implode("&", $sig);
-    return $raw;
+    return urlencode($raw);
   }/*}}}*/
 }/*}}}*/
 
