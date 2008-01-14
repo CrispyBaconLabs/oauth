@@ -1,19 +1,9 @@
 <project name="oauth-provider" default="compile" basedir=".">
-  <property file="build-local.properties"/>
-  <property file="build.properties"/>
-
-  <property name="app.name"      value="oauth-provider"/>
-  <property name="app.version"   value="0.2-alpha"/>
-  <property name="build.home"    value="${basedir}/build"/>
-  <property name="dist.home"     value="${basedir}/dist"/>
-  <property name="docs.home"     value="${dist.home}/docs"/>
   <property name="src.home"      value="${basedir}/src"/>
   <property name="web.home"      value="${basedir}/web"/>
-
-  <property name="compile.debug"       value="true"/>
-  <property name="compile.deprecation" value="false"/>
-  <property name="compile.optimize"    value="true"/>
-  <property name="compile.verbose"     value="false"/>
+  <property file="../../build.properties"/>
+  <property name="app.name"      value="oauth-provider"/>
+  <property name="build.home"    value="${basedir}/build"/>
 
   <fileset id="lib.jars" dir="../..">
     <include name="lib/*.jar"/>

@@ -1,18 +1,7 @@
 <project name="CookieJar" default="compile" basedir=".">
-  <property file="build-local.properties"/>
-  <property file="build.properties"/>
-
+  <property file="../../build.properties"/>
   <property name="app.name"      value="CookieJar"/>
-  <property name="app.version"   value="0.2-alpha"/>
   <property name="build.home"    value="${basedir}/src/main/webapp/WEB-INF/classes"/>
-  <property name="dist.home"     value="${basedir}/dist"/>
-  <property name="docs.home"     value="${dist.home}/docs"/>
-  <property name="src.home"      value="${basedir}/src/main/java"/>
-
-  <property name="compile.debug"       value="true"/>
-  <property name="compile.deprecation" value="false"/>
-  <property name="compile.optimize"    value="true"/>
-  <property name="compile.verbose"     value="false"/>
 
   <fileset id="lib.jars" dir="../..">
     <include name="lib/*.jar"/>
@@ -60,6 +49,7 @@
          basedir="${build.home}"
          webxml="src/main/webapp/WEB-INF/web.xml">
       <lib refid="lib.jars"/>
+      <lib file="../../core/dist/oauth-${app.version}.jar"/>
     </war>
   </target>
 
