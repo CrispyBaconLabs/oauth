@@ -1,7 +1,7 @@
 <project name="CookieJar" default="compile" basedir=".">
+  <property name="app.name"   value="CookieJar"/>
   <property file="../../build.properties"/>
-  <property name="app.name"      value="CookieJar"/>
-  <property name="build.home"    value="${basedir}/src/main/webapp/WEB-INF/classes"/>
+  <property name="build.home" value="${basedir}/src/main/webapp"/>
 
   <fileset id="lib.jars" dir="../..">
     <include name="lib/*.jar"/>
@@ -18,15 +18,15 @@
 
   <target name="clean"
           description="Delete old build and dist directories">
-    <delete dir="${build.home}"/>
+    <delete dir="${build.home}/WEB-INF/classes"/>
     <delete dir="${dist.home}"/>
   </target>
 
   <target name="compile"
           description="Compile Java sources">
     <!-- Compile Java classes as necessary -->
-    <mkdir dir="${build.home}"/>
-    <javac destdir="${build.home}"
+    <mkdir dir="${build.home}/WEB-INF/classes"/>
+    <javac destdir="${build.home}/WEB-INF/classes"
            debug="${compile.debug}"
            deprecation="${compile.deprecation}"
            optimize="${compile.optimize}"
@@ -34,9 +34,8 @@
         <classpath refid="compile.classpath"/>
         <src path="${src.home}"/>
     </javac>
-
     <!-- Copy application resources -->
-    <copy todir="${build.home}">
+    <copy todir="${build.home}/WEB-INF/classes">
       <fileset dir="${src.home}" excludes="**/*.java"/>
     </copy>
   </target>
@@ -47,8 +46,8 @@
     <mkdir dir="${dist.home}"/>
     <war destfile="${dist.home}/${app.name}.war"
          basedir="${build.home}"
-         webxml="src/main/webapp/WEB-INF/web.xml">
-      <lib refid="lib.jars"/>
+         webxml="${build.home}/WEB-INF/web.xml">
+      <lib dir="../../lib" excludes="servlet-api.jar" />
       <lib file="../../core/dist/oauth-${app.version}.jar"/>
     </war>
   </target>
