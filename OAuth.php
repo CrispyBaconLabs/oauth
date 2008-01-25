@@ -190,8 +190,9 @@ class OAuthRequest {/*{{{*/
     $total = array();
     foreach ($sorted as $k => $v) {
       if ($k == "oauth_signature") continue;
-      $total[] = $k . "=" . $v;
-      //$total[] = urlencode($k) . "=" . urlencode($v);
+      //$total[] = $k . "=" . $v;
+      // andy, apparently we need to double encode or something yuck
+      $total[] = urlencode($k) . "=" . urlencode($v);
     }
     return implode("&", $total);
   }/*}}}*/
@@ -209,8 +210,15 @@ class OAuthRequest {/*{{{*/
    */
   public function get_normalized_http_url() {/*{{{*/
     $parts = parse_url($this->http_url);
-    $url_string = "{$parts['scheme']}://{$parts['host']}{$parts['path']}";
-    return $url_string;
+    $parts = parse_url($this->http_url);
+    $port = "";
+    if( $parts['port'] != '80' ){
+      $port = ':' . $parts['port'];
+    }
+    ## aroth, updated to include port
+    $url_string =
+      "{$parts['scheme']}://{$parts['host']}{$port}{$parts['path']}"; 
+      return $url_string;
   }/*}}}*/
 
   /**
