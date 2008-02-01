@@ -58,14 +58,14 @@ class OAuthSignatureMethod_HMAC_SHA1 extends OAuthSignatureMethod {/*{{{*/
   public function build_signature($request, $consumer, $token) {/*{{{*/
     $sig = array(
       urlencode($request->get_normalized_http_method()),
-      urlencode($request->get_normalized_http_url()),
+      preg_replace('/%7E/', '~', urlencode($request->get_normalized_http_url())),
       urlencode($request->get_signable_parameters()),
     );
 
-    $key = $consumer->secret . "&";
+    $key = urlencode($consumer->secret) . "&";
 
     if ($token) {
-      $key .= $token->secret;
+      $key .= urlencode($token->secret);
     }
 
     $raw = implode("&", $sig);
@@ -212,7 +212,7 @@ class OAuthRequest {/*{{{*/
     $parts = parse_url($this->http_url);
     $parts = parse_url($this->http_url);
     $port = "";
-    if( $parts['port'] != '80' ){
+    if( array_key_exists('port', $parts) && $parts['port'] != '80' ){
       $port = ':' . $parts['port'];
     }
     ## aroth, updated to include port
