@@ -100,8 +100,9 @@ try to get an access token: <input type="submit" name="action" value="access_tok
 <h3>Currently Supported Signature Methods</h3>
 <ul>
 <?php
-foreach ($test_server->signature_methods as $method) {
-  print "<li>$method</li>\n";
+$sig_methods = $test_server->get_signature_methods();
+foreach ($sig_methods as $key => $method) {
+  print "<li>$key</li>\n";
 }
 ?>
 </ul>
