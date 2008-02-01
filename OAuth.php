@@ -69,7 +69,8 @@ class OAuthSignatureMethod_HMAC_SHA1 extends OAuthSignatureMethod {/*{{{*/
     }
 
     $raw = implode("&", $sig);
-    //$this->base_string = $raw;
+    // for debug purposes
+    $request->base_string = $raw;
 
     // this is silly.
     $hashed = base64_encode(hash_hmac("sha1", $raw, $key, TRUE));
@@ -93,6 +94,9 @@ class OAuthSignatureMethod_PLAINTEXT extends OAuthSignatureMethod {/*{{{*/
     }
 
     $raw = implode("&", $sig);
+    // for debug purposes
+    $request->base_string = $raw;
+
     return urlencode($raw);
   }/*}}}*/
 }/*}}}*/
@@ -101,7 +105,8 @@ class OAuthRequest {/*{{{*/
   private $parameters;
   private $http_method;
   private $http_url;
-  private $base_string;
+  // for debug purposes
+  public $base_string;
   public static $version = '1.0';
 
   function __construct($http_method, $http_url, $parameters=NULL) {/*{{{*/
