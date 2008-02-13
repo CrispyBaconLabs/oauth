@@ -117,15 +117,37 @@ class OAuthRequest {/*{{{*/
   }/*}}}*/
 
   /**
+   * helper to try to sort out headers for people who aren't running apache
+   */
+  private function get_headers() {
+    if (function_exists('apache_request_headers')) {
+      // we need this to get the actual Authorization: header
+      // because apache tends to tell us it doesn't exist
+      return apache_request_headers();
+    }
+    // otherwise we don't have apache and are just going to have to hope
+    // that $_SERVER actually contains what we need
+    $out = array();
+    foreach ($_SERVER as $key => $value) {
+      if (substr($key, 0, 5) == "HTTP_") {
+        // this is chaos, basically it is just there to capitalize the first
+        // letter of every word that is not an initial HTTP and strip HTTP
+        // code from przemek
+        $key = str_replace(" ", "-", ucwords(strtolower(str_replace("_", " ", substr($key, 5)))));
+        $out[$key] = $value;
+      }
+    }
+    return $out;
+  }
+
+  /**
    * attempt to build up a request from what was passed to the server
    */
   public static function from_request($http_method=NULL, $http_url=NULL, $parameters=NULL) {/*{{{*/
     @$http_url or $http_url = "http://" . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
     @$http_method or $http_method = $_SERVER['REQUEST_METHOD'];
     
-    // we need this to get the actual Authorization: header
-    // because apache tends to tell us it doesn't exist
-    $request_headers = apache_request_headers();
+    $request_headers = $this->get_headers();
 
     // let the library user override things however they'd like, if they know
     // which parameters to use then go for it, for example XMLRPC might want to
