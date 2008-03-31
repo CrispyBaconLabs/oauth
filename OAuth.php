@@ -37,8 +37,8 @@ class OAuthToken {/*{{{*/
    * would respond to request_token and access_token calls with
    */
   function to_string() {/*{{{*/
-    return "oauth_token=" . urlencode($this->key) . 
-        "&oauth_token_secret=" . urlencode($this->secret);
+    return "oauth_token=" . OAuthUtil::urlencodeRFC3986($this->key) . 
+        "&oauth_token_secret=" . OAuthUtil::urlencodeRFC3986($this->secret);
   }/*}}}*/
 
   function __toString() {/*{{{*/
@@ -57,15 +57,15 @@ class OAuthSignatureMethod_HMAC_SHA1 extends OAuthSignatureMethod {/*{{{*/
 
   public function build_signature($request, $consumer, $token) {/*{{{*/
     $sig = array(
-      urlencode($request->get_normalized_http_method()),
-      preg_replace('/%7E/', '~', urlencode($request->get_normalized_http_url())),
-      urlencode($request->get_signable_parameters()),
+      OAuthUtil::urlencodeRFC3986($request->get_normalized_http_method()),
+      OAuthUtil::urlencodeRFC3986($request->get_normalized_http_url()),
+      OAuthUtil::urlencodeRFC3986($request->get_signable_parameters()),
     );
 
-    $key = urlencode($consumer->secret) . "&";
+    $key = OAuthUtil::urlencodeRFC3986($consumer->secret) . "&";
 
     if ($token) {
-      $key .= urlencode($token->secret);
+      $key .= OAuthUtil::urlencodeRFC3986($token->secret);
     }
 
     $raw = implode("&", $sig);
@@ -84,11 +84,11 @@ class OAuthSignatureMethod_PLAINTEXT extends OAuthSignatureMethod {/*{{{*/
   }/*}}}*/
   public function build_signature($request, $consumer, $token) {/*{{{*/
     $sig = array(
-      urlencode($consumer->secret)
+      OAuthUtil::urlencodeRFC3986($consumer->secret)
     );
 
     if ($token) {
-      array_push($sig, urlencode($token->secret));
+      array_push($sig, OAuthUtil::urlencodeRFC3986($token->secret));
     } else {
       array_push($sig, '');
     }
@@ -97,7 +97,7 @@ class OAuthSignatureMethod_PLAINTEXT extends OAuthSignatureMethod {/*{{{*/
     // for debug purposes
     $request->base_string = $raw;
 
-    return urlencode($raw);
+    return OAuthUtil::urlencodeRFC3986($raw);
   }/*}}}*/
 }/*}}}*/
 
@@ -196,7 +196,7 @@ class OAuthRequest {/*{{{*/
       if ($k == "oauth_signature") continue;
       //$total[] = $k . "=" . $v;
       // andy, apparently we need to double encode or something yuck
-      $total[] = urlencode($k) . "=" . urlencode($v);
+      $total[] = OAuthUtil::urlencodeRFC3986($k) . "=" . OAuthUtil::urlencodeRFC3986($v);
     }
     return implode("&", $total);
   }/*}}}*/
@@ -239,7 +239,7 @@ class OAuthRequest {/*{{{*/
   public function to_postdata() {/*{{{*/
     $total = array();
     foreach ($this->parameters as $k => $v) {
-      $total[] = urlencode($k) . "=" . urlencode($v);
+      $total[] = OAuthUtil::urlencodeRFC3986($k) . "=" . OAuthUtil::urlencodeRFC3986($v);
     }
     $out = implode("&", $total);
     return $out;
@@ -253,7 +253,7 @@ class OAuthRequest {/*{{{*/
     $total = array();
     foreach ($this->parameters as $k => $v) {
       if (substr($k, 0, 5) != "oauth") continue;
-      $total[] = urlencode($k) . '="' . urlencode($v) . '"';
+      $total[] = OAuthUtil::urlencodeRFC3986($k) . '="' . OAuthUtil::urlencodeRFC3986($v) . '"';
     }
     $out = implode(",", $total);
     return $out;
@@ -608,6 +608,16 @@ class SimpleOAuthDataStore extends OAuthDataStore {/*{{{*/
     $token = $this->new_token($consumer, 'access');
     dba_delete("request_" . $token->key, $this->dbh);
     return $token;
+  }/*}}}*/
+}/*}}}*/
+
+class OAuthUtil {/*{{{*/
+  public static function urlencodeRFC3986($string) {/*{{{*/
+    return str_replace('%7E', '~', rawurlencode($string));
+  }/*}}}*/
+    
+  public static function urldecodeRFC3986($string) {/*{{{*/
+    return rawurldecode($string);
   }/*}}}*/
 }/*}}}*/
 
