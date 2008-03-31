@@ -253,9 +253,8 @@ class OAuthRequest {/*{{{*/
     $total = array();
     foreach ($this->parameters as $k => $v) {
       if (substr($k, 0, 5) != "oauth") continue;
-      $total[] = OAuthUtil::urlencodeRFC3986($k) . '="' . OAuthUtil::urlencodeRFC3986($v) . '"';
+      $out .= ',' . OAuthUtil::urlencodeRFC3986($k) . '="' . OAuthUtil::urlencodeRFC3986($v) . '"';
     }
-    $out = implode(",", $total);
     return $out;
   }/*}}}*/
 
