@@ -84,12 +84,12 @@ $echo_req->sign_request($sig_method, $test_consumer, $acc_token);
 <h3>Choose a Signature Method</h3>
 <select name="sig_method">
 <?php
-foreach ($sig_methods as $key => $method) {
+foreach ($sig_methods as $name=> $method) {
   $selected = "";
-  if ($key == $sig_method->get_name()) {
+  if ($name == $sig_method->get_name()) {
     $selected = " selected='selected'";
   }
-  print "<option value='$key'$selected>$key</option>\n";
+  print "<option value='$name'$selected>$name</option>\n";
 }
 ?>
 </select>
@@ -109,10 +109,9 @@ try to authorize this token: <input type="submit" name="action" value="authorize
 try to get an access token: <input type="submit" name="action" value="access_token" /><br />
 
 <h3>Currently Supported Signature Methods</h3>
-<p>Current signing method is: <?php echo $user_sig_method ?></p>
+<p>Current signing method is: <?php echo $sig_method->get_name() ?></p>
 <ul>
 <?php
-$sig_methods = $test_server->get_signature_methods();
 foreach ($sig_methods as $key => $method) {
   
   print "<li>$key";
