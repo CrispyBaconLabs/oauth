@@ -7,6 +7,11 @@ $req_token = new OAuthConsumer("requestkey", "requestsecret", 1);
 $acc_token = new OAuthConsumer("accesskey", "accesssecret", 1);
 
 $sig_method = $hmac_method;
+$user_sig_method = @$_GET['sig_method'];
+if ($user_sig_method) {
+  $sig_methods = $test_server->get_signature_methods();
+  $sig_method = $sig_methods[$user_sig_method];
+}
 
 $req_req = OAuthRequest::from_consumer_and_token($test_consumer, NULL, "GET", $base_url . "/request_token.php");
 $req_req->sign_request($sig_method, $test_consumer, NULL);
@@ -77,11 +82,17 @@ A successful request will echo the non-OAuth parameters sent to it, for example:
 <a href="<?php echo $echo_req; ?>"><?php echo $echo_req; ?></a>
 
 <h3>Currently Supported Signature Methods</h3>
+<p>Current signing method is: <?php echo $user_sig_method ?></p>
 <ul>
 <?php
 $sig_methods = $test_server->get_signature_methods();
 foreach ($sig_methods as $key => $method) {
-  print "<li>$key</li>\n";
+  
+  print "<li>$key";
+  if ($key != $sig_method->get_name()) {
+    print "(<a href='?sig_method=$key'>switch</a>)";
+  }
+  print "</li>\n";
 }
 ?>
 </ul>

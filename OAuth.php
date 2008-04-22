@@ -125,7 +125,7 @@ class OAuthSignatureMethod_RSA_SHA1 extends OAuthSignatureMethod {/*{{{*/
     $base_string = $request->get_signature_base_string();
   
     // Fetch the private key cert based on the request
-    $cert = $this->fetch_private_key($request);
+    $cert = $this->fetch_private_cert($request);
 
     //Pull the private key ID from the certificate
     $privatekeyid = openssl_get_privatekey($cert);
@@ -145,7 +145,7 @@ class OAuthSignatureMethod_RSA_SHA1 extends OAuthSignatureMethod {/*{{{*/
     $base_string = $request->get_signature_base_string();
   
     // Fetch the public key cert based on the request
-    $cert = $this->fetch_cert($request);
+    $cert = $this->fetch_public_cert($request);
 
     //Pull the public key ID from the certificate
     $publickeyid = openssl_get_publickey($cert);
