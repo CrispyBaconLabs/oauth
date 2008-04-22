@@ -7,7 +7,7 @@ require_once("../OAuth_TestServer.php");
  */
 $domain = $_SERVER['HTTP_HOST'];
 $base = "/oauth/example";
-$base_url = "http://$domain$base"
+$base_url = "http://$domain$base";
 
 /**
  * Some default objects
