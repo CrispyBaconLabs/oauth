@@ -47,7 +47,10 @@ class OAuthToken {/*{{{*/
 }/*}}}*/
 
 class OAuthSignatureMethod {/*{{{*/
-
+  public function check_signature(&$request, $consumer, $token, $signature) {
+    $built = $this->build_signature($request, $consumer, $token);
+    return $built == $signature;
+  }
 }/*}}}*/
 
 class OAuthSignatureMethod_HMAC_SHA1 extends OAuthSignatureMethod {/*{{{*/
@@ -75,6 +78,7 @@ class OAuthSignatureMethod_PLAINTEXT extends OAuthSignatureMethod {/*{{{*/
   public function get_name() {/*{{{*/
     return "PLAINTEXT";
   }/*}}}*/
+
   public function build_signature($request, $consumer, $token) {/*{{{*/
     $sig = array(
       OAuthUtil::urlencodeRFC3986($consumer->secret)
@@ -92,6 +96,68 @@ class OAuthSignatureMethod_PLAINTEXT extends OAuthSignatureMethod {/*{{{*/
 
     return OAuthUtil::urlencodeRFC3986($raw);
   }/*}}}*/
+}/*}}}*/
+
+class OAuthSignatureMethod_RSA_SHA1 extends OAuthSignatureMethod {/*{{{*/
+  public function get_name() {/*{{{*/
+    return "RSA-SHA1";
+  }/*}}}*/
+
+  protected function fetch_public_cert(&$request) {/*{{{*/
+    // not implemented yet, ideas are:
+    // (1) do a lookup in a table of trusted certs keyed off of consumer
+    // (2) fetch via http using a url provided by the requester
+    // (3) some sort of specific discovery code based on request
+    //
+    // either way should return a string representation of the certificate
+    throw Exception("fetch_public_cert not implemented");
+  }/*}}}*/
+
+  protected function fetch_private_cert(&$request) {/*{{{*/
+    // not implemented yet, ideas are:
+    // (1) do a lookup in a table of trusted certs keyed off of consumer
+    //
+    // either way should return a string representation of the certificate
+    throw Exception("fetch_private_cert not implemented");
+  }/*}}}*/
+
+  public function build_signature(&$request, $consumer, $token) {/*{{{*/
+    $base_string = $request->get_signature_base_string();
+  
+    // Fetch the private key cert based on the request
+    $cert = $this->fetch_private_key($request);
+
+    //Pull the private key ID from the certificate
+    $privatekeyid = openssl_get_privatekey($cert);
+
+    //Check the computer signature against the one passed in the query
+    $ok = openssl_sign($base_string, $signature, $privatekeyid);   
+
+    //Release the key resource
+    openssl_free_key($privatekeyid);
+  
+    return base64_encode($signature);
+  } /*}}}*/
+
+  public function check_signature(&$request, $consumer, $token, $signature) {/*{{{*/
+    $decoded_sig = base64_decode($signature);
+
+    $base_string = $request->get_signature_base_string();
+  
+    // Fetch the public key cert based on the request
+    $cert = $this->fetch_cert($request);
+
+    //Pull the public key ID from the certificate
+    $publickeyid = openssl_get_publickey($cert);
+
+    //Check the computer signature against the one passed in the query
+    $ok = openssl_verify($base_string, $decoded_sig, $publickeyid);   
+
+    //Release the key resource
+    openssl_free_key($publickeyid);
+  
+    return $ok == 1;
+  } /*}}}*/
 }/*}}}*/
 
 class OAuthRequest {/*{{{*/
@@ -359,7 +425,7 @@ class OAuthRequest {/*{{{*/
   /**
    * helper to try to sort out headers for people who aren't running apache
    */
-  private static function get_headers() {
+  private static function get_headers() {/*{{{*/
     if (function_exists('apache_request_headers')) {
       // we need this to get the actual Authorization: header
       // because apache tends to tell us it doesn't exist
@@ -378,7 +444,7 @@ class OAuthRequest {/*{{{*/
       }
     }
     return $out;
-  }
+  }/*}}}*/
 }/*}}}*/
 
 class OAuthServer {/*{{{*/
@@ -527,11 +593,14 @@ class OAuthServer {/*{{{*/
     $signature_method = $this->get_signature_method($request);
 
     $signature = $request->get_parameter('oauth_signature');    
-    $built = $signature_method->build_signature(
-      $request, $consumer, $token
+    $valid_sig = $signature_method->check_signature(
+      $request, 
+      $consumer, 
+      $token, 
+      $signature
     );
 
-    if ($signature != $built) {
+    if (!$valid_sig) {
       throw new OAuthException("Invalid signature");
     }
   }/*}}}*/

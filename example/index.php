@@ -1,16 +1,12 @@
 <?php
 require_once("common.inc.php");
 
-$test_server = new TestOAuthServer(new MockOAuthDataStore());
 
 $test_consumer = new OAuthConsumer("key", "secret", NULL);
 $req_token = new OAuthConsumer("requestkey", "requestsecret", 1);
 $acc_token = new OAuthConsumer("accesskey", "accesssecret", 1);
-$sig_method = new OAuthSignatureMethod_HMAC_SHA1();
-$plaintext_method = new OAuthSignatureMethod_PLAINTEXT();
 
-$test_server->add_signature_method($sig_method);
-$test_server->add_signature_method($plaintext_method);
+$sig_method = $hmac_method;
 
 $req_req = OAuthRequest::from_consumer_and_token($test_consumer, NULL, "GET", $base_url . "/request_token.php");
 $req_req->sign_request($sig_method, $test_consumer, NULL);
