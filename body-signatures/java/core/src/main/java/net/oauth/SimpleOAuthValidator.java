@@ -41,8 +41,8 @@ public class SimpleOAuthValidator implements OAuthValidator {
     /**
      * Public constructor.
      *
-     * @param timestampWindowSec
-     *            specifies, in seconds, the windows (into the past and
+     * @param timestampWindowMsec
+     *            specifies, in milliseconds, the windows (into the past and
      *            into the future) in which we'll accept timestamps.
      * @param maxVersion
      *            the maximum acceptable oauth_version
@@ -56,11 +56,19 @@ public class SimpleOAuthValidator implements OAuthValidator {
     protected final double maxVersion;
     protected final long timestampWindow;
 
-    /** {@inherit} */
+    /** {@inheritDoc} */
     public void validateMessage(OAuthMessage message, OAuthAccessor accessor) throws Exception {
         validateVersion(message);
         validateTimestampAndNonce(message);
         validateSignature(message, accessor);
+    }
+
+    /** {@inheritDoc} */
+    public void validateMessageAndBody(OAuthMessage message,
+            OAuthAccessor accessor, String contentType, byte[] signedBody)
+            throws Exception {
+        validateMessage(message, accessor);
+        validatePostBodySignature(message, accessor, contentType, signedBody);
     }
 
     protected void validateVersion(OAuthMessage message) throws Exception {
@@ -95,8 +103,16 @@ public class SimpleOAuthValidator implements OAuthValidator {
         OAuthSignatureMethod.newSigner(message, accessor).validate(message);
     }
 
+    protected void validatePostBodySignature(OAuthMessage message,
+            OAuthAccessor accessor, String contentType, byte[] signedBody)
+            throws Exception {
+        message.requireParameters(OAuth.XOAUTH_BODY_SIGNATURE,
+                OAuth.OAUTH_CONSUMER_KEY, OAuth.OAUTH_SIGNATURE_METHOD);
+        OAuthSignatureMethod.newSigner(message, accessor)
+                .validateBodySignature(message, contentType, signedBody);
+    }
+
     protected long currentTimeMsec() {
         return System.currentTimeMillis();
     }
-
 }

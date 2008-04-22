@@ -24,12 +24,12 @@ import net.oauth.OAuth;
 class PLAINTEXT extends OAuthSignatureMethod {
 
     @Override
-    public String getSignature(String baseString) {
+    public String getSignature(byte[] toSign) {
         return getSignature();
     }
 
     @Override
-    protected boolean isValid(String signature, String baseString)
+    protected boolean isValid(String signature, byte[] signed)
             throws Exception {
         return signature.equals(getSignature());
     }

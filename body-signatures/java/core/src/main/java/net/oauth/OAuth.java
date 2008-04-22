@@ -49,6 +49,8 @@ public class OAuth {
     public static final String OAUTH_NONCE = "oauth_nonce";
     public static final String OAUTH_VERSION = "oauth_version";
 
+    public static final String XOAUTH_BODY_SIGNATURE = "xoauth_body_signature";
+
     public static final String HMAC_SHA1 = "HMAC-SHA1";
     public static final String RSA_SHA1 = "RSA-SHA1";
 
@@ -242,6 +244,6 @@ public class OAuth {
     }
 
     public static boolean isEmpty(String str) {
-	return (str == null) || (str.length() == 0);
+  return (str == null) || (str.length() == 0);
     }
 }

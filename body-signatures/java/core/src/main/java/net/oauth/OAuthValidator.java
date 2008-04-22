@@ -15,6 +15,7 @@
  */
 package net.oauth;
 
+
 /**
  * An algorithm to determine whether a message has a valid signature, a correct
  * version number, a fresh timestamp, etc.
@@ -31,6 +32,24 @@ public interface OAuthValidator {
      * <a href="http://wiki.oauth.net/ProblemReporting">Problem Reporting extension</a>.
      */
     public void validateMessage(OAuthMessage message, OAuthAccessor accessor)
+            throws Exception;
+
+    /**
+     * Check that the given message from the given accessor is valid. This
+     * method will not only check the signature on the oauth parameters,
+     * but also on the POST body. The POST body must NOT be of type
+     * x-www-form-urlencoded. This method must only be called if the consumer
+     * provided an xoauth_body_signature parameter.
+     *
+     * @param message The message, as received from the consumer.
+     * @param accessor the accessor holding the verification keys.
+     * @param contentType the content type of the POST body
+     * @param signedBody the POST body whose signature is provided in the
+     *        xoauth_body_signature parameter of the message.
+     * @throws Exception if message or POST body didn't validate
+     */
+    public void validateMessageAndBody(OAuthMessage message,
+            OAuthAccessor accessor, String contentType, byte[] signedBody)
             throws Exception;
 
 }

@@ -16,13 +16,16 @@
 
 package net.oauth.signature;
 
+import net.oauth.OAuth;
+
+import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.security.GeneralSecurityException;
 import java.util.Arrays;
+
 import javax.crypto.Mac;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
-import net.oauth.OAuth;
 
 /**
  * @author John Kristian
@@ -30,21 +33,21 @@ import net.oauth.OAuth;
 class HMAC_SHA1 extends OAuthSignatureMethod {
 
     @Override
-    protected String getSignature(String baseString)
+    protected String getSignature(byte[] toSign)
             throws GeneralSecurityException, UnsupportedEncodingException {
-        String signature = base64Encode(computeSignature(baseString));
+        String signature = base64Encode(computeSignature(toSign));
         return signature;
     }
 
     @Override
-    protected boolean isValid(String signature, String baseString)
+    protected boolean isValid(String signature, byte[] signed)
             throws GeneralSecurityException, UnsupportedEncodingException {
-        byte[] expected = computeSignature(baseString);
+        byte[] expected = computeSignature(signed);
         byte[] actual = decodeBase64(signature);
         return Arrays.equals(expected, actual);
     }
 
-    private byte[] computeSignature(String baseString)
+    private byte[] computeSignature(byte[] toSign)
             throws GeneralSecurityException, UnsupportedEncodingException {
         SecretKey key = null;
         synchronized (this) {
@@ -58,8 +61,7 @@ class HMAC_SHA1 extends OAuthSignatureMethod {
         }
         Mac mac = Mac.getInstance(MAC_NAME);
         mac.init(key);
-        byte[] text = baseString.getBytes(ENCODING);
-        return mac.doFinal(text);
+        return mac.doFinal(toSign);
     }
 
     /** ISO-8859-1 or US-ASCII would work, too. */

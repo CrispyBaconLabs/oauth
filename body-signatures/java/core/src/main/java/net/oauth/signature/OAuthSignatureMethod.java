@@ -16,21 +16,25 @@
 
 package net.oauth.signature;
 
+import net.oauth.OAuth;
+import net.oauth.OAuthAccessor;
+import net.oauth.OAuthConsumer;
+import net.oauth.OAuthMessage;
+import net.oauth.OAuthProblemException;
+
+import org.apache.commons.codec.binary.Base64;
+
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import net.oauth.OAuth;
-import net.oauth.OAuthAccessor;
-import net.oauth.OAuthConsumer;
-import net.oauth.OAuthMessage;
-import net.oauth.OAuthProblemException;
-import org.apache.commons.codec.binary.Base64;
 
 /**
  * A pair of algorithms for computing and verifying an OAuth digital signature.
@@ -43,6 +47,56 @@ public abstract class OAuthSignatureMethod {
     public void sign(OAuthMessage message) throws Exception {
         message.addParameter(new OAuth.Parameter("oauth_signature",
                 getSignature(message)));
+    }
+
+    /** Add a signature and a body signature to the message */
+    public void signWithBody(OAuthMessage authMessage, String contentType,
+            byte[] postBody) throws Exception {
+
+        // this sets the xoauth_body_signature parameter
+        long start = System.currentTimeMillis();
+        signBody(authMessage, contentType, postBody);
+        long first = System.currentTimeMillis();
+
+        // this signs all parameters, including the xoauth_body_signature
+        // parameter (thus preserving backwards compatibility for SPs that
+        // don't support the body signature extension)
+        sign(authMessage);
+        long second = System.currentTimeMillis();
+        System.out.println("body signing: " + (first - start) + "ms. " +
+                        "message signing: " + (second - first) + "ms.");
+    }
+
+    private void signBody(OAuthMessage message, String contentType,
+            byte[] postBody) throws Exception {
+        message.addParameter(OAuth.XOAUTH_BODY_SIGNATURE,
+                getBodySignature(contentType, postBody));
+    }
+
+    private String getBodySignature(
+            String contentType,
+            byte[] postBody) throws Exception {
+        return getSignature(getBodyBaseString(contentType, postBody));
+    }
+
+    private byte[] getBodyBaseString(String contentType, byte[] postBody)
+            throws UnsupportedEncodingException {
+
+        // TODO: once the spec is finished, we might have to fold in more stuff
+        // to sign here. For now, we're signing the content type and post body,
+        // separated by exclamation marks.
+        byte[] contentTypeBytes = (contentType == null)
+                ? new byte[0]
+                : contentType.toLowerCase().getBytes(OAuth.ENCODING);
+
+        int length = postBody.length + contentTypeBytes.length + 2;
+
+        ByteBuffer buffer = ByteBuffer.allocate(length);
+        buffer.put((byte)33);
+        buffer.put(contentTypeBytes);
+        buffer.put((byte)33);
+        buffer.put(postBody);
+        return buffer.array();
     }
 
     /**
@@ -66,14 +120,18 @@ public abstract class OAuthSignatureMethod {
         }
     }
 
-    protected String getSignature(OAuthMessage message) throws Exception {
-        String baseString = getBaseString(message);
-        String signature = getSignature(baseString);
-        // Logger log = Logger.getLogger(getClass().getName());
-        // if (log.isLoggable(Level.FINE)) {
-        // log.fine(signature + "=getSignature(" + baseString + ")");
-        // }
-        return signature;
+    public void validateBodySignature(OAuthMessage message,
+            String contentType, byte[] signedBody) throws Exception {
+        message.requireParameters(OAuth.XOAUTH_BODY_SIGNATURE);
+        String signature = message.getBodySignature();
+        if (!isValid(signature, getBodyBaseString(contentType, signedBody))) {
+            OAuthProblemException problem = new OAuthProblemException(
+                    "body_signature_invalid");
+            problem.setParameter("xoauth_body_signature", signature);
+            problem.setParameter("oauth_signature_method",
+                    message.getSignatureMethod());
+            throw problem;
+        }
     }
 
     protected void initialize(String name, OAuthAccessor accessor)
@@ -99,11 +157,24 @@ public abstract class OAuthSignatureMethod {
 
     public static final String _ACCESSOR = "-Accessor";
 
+    protected String getSignature(OAuthMessage message) throws Exception {
+        return getSignature(getBaseString(message));
+    }
+
+    protected String getSignature(String baseString) throws Exception {
+        return getSignature(baseString.getBytes(OAuth.ENCODING));
+    }
+
     /** Compute the signature for the given base string. */
-    protected abstract String getSignature(String baseString) throws Exception;
+    protected abstract String getSignature(byte[] toSign) throws Exception;
+
+    protected boolean isValid(String signature, String baseString)
+            throws Exception  {
+        return isValid(signature, baseString.getBytes(OAuth.ENCODING));
+    }
 
     /** Decide whether the signature is valid. */
-    protected abstract boolean isValid(String signature, String baseString)
+    protected abstract boolean isValid(String signature, byte[] signed)
             throws Exception;
 
     private String consumerSecret;
@@ -281,5 +352,4 @@ public abstract class OAuthSignatureMethod {
         }
         return list;
     }
-
 }

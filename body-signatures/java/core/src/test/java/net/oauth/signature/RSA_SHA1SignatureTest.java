@@ -190,7 +190,7 @@ public class RSA_SHA1SignatureTest extends TestCase {
         try {
             message.validateSignature(clientAccessor);
             fail("shouldn't be able to verify message without public key, " +
-            	 "but did");
+                     "but did");
         } catch(IllegalStateException e) {
             // expected
         }
@@ -199,7 +199,7 @@ public class RSA_SHA1SignatureTest extends TestCase {
         try {
             message.validateSignature (serverAccessor);
             fail("modified message signature should not have validated, " +
-            	 "but did");
+                     "but did");
         } catch(OAuthProblemException e) {
             // to be expected
         }
@@ -289,4 +289,28 @@ public class RSA_SHA1SignatureTest extends TestCase {
         OAuthAccessor accessor2 = new OAuthAccessor(serverX509PemCert);
         doTests(message, accessor1, accessor2);
     }
+
+    public void testMultiSpeed() throws Exception {
+        for (int i = 0; i < 20; i++) {
+            testSpeed();
+        }
+    }
+
+    public void testSpeed() throws Exception {
+        byte[] body = new byte[4096];
+        new Random().nextBytes(body);
+        String contentType = "application/octet-stream";
+
+        OAuthConsumer consumer = new OAuthConsumer(
+                null, null, "consumersecret", null);
+        consumer.setProperty(RSA_SHA1.PRIVATE_KEY, PRIVATE_KEY);
+
+        OAuthMessage message = new OAuthMessage("GET", "http://foo/bar", null);
+        message.addParameter(OAuth.OAUTH_SIGNATURE_METHOD, OAuth.RSA_SHA1);
+        message.addParameter(OAuth.OAUTH_TOKEN, "token");
+        message.addParameter(OAuth.OAUTH_CONSUMER_KEY, "consumer");
+
+        message.signWithBody(new OAuthAccessor(consumer), contentType, body);
+    }
+
 }

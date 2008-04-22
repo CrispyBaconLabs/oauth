@@ -16,6 +16,8 @@
 
 package net.oauth.signature;
 
+import net.oauth.OAuthAccessor;
+
 import java.io.ByteArrayInputStream;
 import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
@@ -27,9 +29,6 @@ import java.security.cert.X509Certificate;
 import java.security.spec.EncodedKeySpec;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
-
-import net.oauth.OAuth;
-import net.oauth.OAuthAccessor;
 
 /**
  * Class to handle RSA-SHA1 signatures on OAuth requests. A consumer
@@ -181,16 +180,15 @@ public class RSA_SHA1 extends OAuthSignatureMethod {
     }
 
     @Override
-    protected String getSignature(String baseString) throws Exception {
-        byte[] signature = sign(baseString.getBytes(OAuth.ENCODING));
+    protected String getSignature(byte[] toSign) throws Exception {
+        byte[] signature = sign(toSign);
         return base64Encode(signature);
     }
 
     @Override
-    protected boolean isValid(String signature, String baseString)
+    protected boolean isValid(String signature, byte[] signed)
             throws Exception {
-        return verify(decodeBase64(signature),
-                      baseString.getBytes(OAuth.ENCODING));
+        return verify(decodeBase64(signature), signed);
     }
 
     private byte[] sign(byte[] message) throws GeneralSecurityException {

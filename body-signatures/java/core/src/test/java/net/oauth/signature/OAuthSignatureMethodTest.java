@@ -24,6 +24,7 @@ import net.oauth.OAuthConsumer;
 import net.oauth.OAuthMessage;
 
 import java.util.List;
+import java.util.Random;
 
 public class OAuthSignatureMethodTest extends TestCase {
 
@@ -147,7 +148,7 @@ public class OAuthSignatureMethodTest extends TestCase {
                     "egQqG5AJep5sJ7anhXju1unge2I=" },
             { "HMAC-SHA1", "HMAC-SHA1", "cs", "ts", "bs",
                     "VZVjXceV7JgPq/dOTnNmEfO0Fv8=" },
-            { "OAuth A request", "PLAINTEXT", "kd94hf93k423kf44", null, null,
+            { "OAuth A request", "PLAINTEXT", "kd94hf93k423kf44", null, "bs",
                     "kd94hf93k423kf44&" },
             { "OAuth A access", "HMAC-SHA1", "kd94hf93k423kf44",
                     "pfkkdhi9sl3r4s00", OAUTH_A_BASE_STRING,
@@ -193,6 +194,28 @@ public class OAuthSignatureMethodTest extends TestCase {
         }
         if (errors.length() > 0)
             fail(errors.toString());
+    }
+
+    public void testMultiSpeed() throws Exception {
+        for (int i = 0; i < 20; i++) {
+            testSpeed();
+        }
+    }
+
+    public void testSpeed() throws Exception {
+        byte[] body = new byte[4096];
+        new Random().nextBytes(body);
+        String contentType = "application/octet-stream";
+
+        OAuthConsumer consumer = new OAuthConsumer(
+                null, null, "consumersecret", null);
+
+        OAuthMessage message = new OAuthMessage("GET", "http://foo/bar", null);
+        message.addParameter(OAuth.OAUTH_SIGNATURE_METHOD, OAuth.HMAC_SHA1);
+        message.addParameter(OAuth.OAUTH_TOKEN, "token");
+        message.addParameter(OAuth.OAUTH_CONSUMER_KEY, "consumer");
+
+        message.signWithBody(new OAuthAccessor(consumer), contentType, body);
     }
 
 }

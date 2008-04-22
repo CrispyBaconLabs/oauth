@@ -122,6 +122,10 @@ public class OAuthMessage {
         return getParameter("oauth_signature");
     }
 
+    public String getBodySignature() throws IOException {
+        return getParameter(OAuth.XOAUTH_BODY_SIGNATURE);
+    }
+
     protected Map<String, String> getParameterMap() throws IOException {
         beforeGetParameter();
         if (parameterMap == null) {
@@ -223,15 +227,42 @@ public class OAuthMessage {
         OAuthSignatureMethod.newSigner(this, accessor).sign(this);
     }
 
+    /** Add signature and body signature to the message */
+    public void signWithBody(OAuthAccessor accessor, String contentType,
+            byte[] postBody) throws Exception {
+        OAuthSignatureMethod.newSigner(this, accessor).signWithBody(this,
+                contentType, postBody);
+    }
+
     /**
      * Check that the message is valid.
-     * 
+     *
      * @throws OAuthProblemException
      *             the message is invalid
      */
     public void validateMessage(OAuthAccessor accessor, OAuthValidator validator)
             throws Exception {
         validator.validateMessage(this, accessor);
+    }
+
+    /**
+     * Check that the message is valid, and that its POST body's signature
+     * verifies. Only call this method if the consumer provided an
+     * xoauth_body_signature parameter, and if the type of the body is NOT
+     * x-www-form-urlencoded.
+     *
+     * @param accessor the accessor holding the verification keys
+     * @param validator the validator that decides what makes a message valid
+     * @param signedBody the POST body
+     *
+     * @throws OAuthProblemException
+     *             the message is invalid
+     */
+    public void validateMessageWithBody(OAuthAccessor accessor,
+            OAuthValidator validator, String contentType, byte[] signedBody)
+            throws Exception {
+        validator.validateMessageAndBody(this, accessor, contentType,
+                signedBody);
     }
 
     /**
