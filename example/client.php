@@ -1,12 +1,6 @@
 <?php
 require_once("common.inc.php");
 
-$test_server = new TestOAuthServer(new MockOAuthDataStore());
-$sha1_method = new OAuthSignatureMethod_HMAC_SHA1();
-$plaintext_method = new OAuthSignatureMethod_PLAINTEXT();
-$test_server->add_signature_method($sha1_method);
-$test_server->add_signature_method($plaintext_method);
-
 $key = @$_REQUEST['key'];
 $secret = @$_REQUEST['secret'];
 $token = @$_REQUEST['token'];
@@ -14,6 +8,11 @@ $token_secret = @$_REQUEST['token_secret'];
 $endpoint = @$_REQUEST['endpoint'];
 $action = @$_REQUEST['action'];
 $dump_request = @$_REQUEST['dump_request'];
+$user_sig_method = @$_REQUEST['sig_method'];
+$sig_method = $hmac_method;
+if ($user_sig_method) {
+  $sig_method = $sig_methods[$user_sig_method];
+}
 
 $test_consumer = new OAuthConsumer($key, $secret, NULL);
 
@@ -25,7 +24,7 @@ if ($token) {
 
 if ($action == "request_token") {
   $req_req = OAuthRequest::from_consumer_and_token($test_consumer, NULL, "GET", $endpoint, array());
-  $req_req->sign_request($sha1_method, $test_consumer, NULL);
+  $req_req->sign_request($sig_method, $test_consumer, NULL);
   if ($dump_request) {
     Header('Content-type: text/plain');
     print "request url: " . $req_req->to_url(). "\n";
@@ -46,7 +45,7 @@ else if ($action == "authorize") {
 }
 else if ($action == "access_token") {
   $acc_req = OAuthRequest::from_consumer_and_token($test_consumer, $test_token, "GET", $endpoint, array());
-  $acc_req->sign_request($sha1_method, $test_consumer, $test_token);
+  $acc_req->sign_request($sig_method, $test_consumer, $test_token);
   if ($dump_request) {
     Header('Content-type: text/plain');
     print "request url: " . $acc_req->to_url() . "\n";
@@ -61,13 +60,13 @@ else if ($action == "access_token") {
 $acc_token = new OAuthConsumer("accesskey", "accesssecret", 1);
 
 $req_req = OAuthRequest::from_consumer_and_token($test_consumer, NULL, "GET", $base_url . "/request_token.php", array());
-$req_req->sign_request($sha1_method, $test_consumer, NULL);
+$req_req->sign_request($sig_method, $test_consumer, NULL);
 
 $acc_req = OAuthRequest::from_consumer_and_token($test_consumer, $req_token, "GET", $base_url . "/access_token.php");
-$acc_req->sign_request($sha1_method, $test_consumer, $req_token);
+$acc_req->sign_request($sig_method, $test_consumer, $req_token);
 
 $echo_req = OAuthRequest::from_consumer_and_token($test_consumer, $acc_token, "GET", $base_url . "/echo_api.php", array("method"=> "foo", "bar" => "baz"));
-$echo_req->sign_request($sha1_method, $test_consumer, $acc_token);
+$echo_req->sign_request($sig_method, $test_consumer, $acc_token);
 
 ?>
 <html>
@@ -82,6 +81,18 @@ $echo_req->sign_request($sha1_method, $test_consumer, $acc_token);
 <p>Note: we don't store any of the information you type in.</p>
 
 <form method="POST" name="oauth_client">
+<h3>Choose a Signature Method</h3>
+<select name="sig_method">
+<?php
+foreach ($sig_methods as $key => $method) {
+  $selected = "";
+  if ($key == $sig_method->get_name()) {
+    $selected = " selected='selected'";
+  }
+  print "<option value='$key'$selected>$key</option>\n";
+}
+?>
+</select>
 <h3>Enter The Endpoint to Test</h3>
 endpoint: <input type="text" name="endpoint" value="<?php echo $endpoint; ?>" /><br />
 <h3>Enter Your Consumer Key / Secret</h3>
@@ -98,11 +109,17 @@ try to authorize this token: <input type="submit" name="action" value="authorize
 try to get an access token: <input type="submit" name="action" value="access_token" /><br />
 
 <h3>Currently Supported Signature Methods</h3>
+<p>Current signing method is: <?php echo $user_sig_method ?></p>
 <ul>
 <?php
 $sig_methods = $test_server->get_signature_methods();
 foreach ($sig_methods as $key => $method) {
-  print "<li>$key</li>\n";
+  
+  print "<li>$key";
+  if ($key != $sig_method->get_name()) {
+    print "(<a href='?sig_method=$key'>switch</a>)";
+  }
+  print "</li>\n";
 }
 ?>
 </ul>

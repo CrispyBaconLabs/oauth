@@ -9,7 +9,6 @@ $acc_token = new OAuthConsumer("accesskey", "accesssecret", 1);
 $sig_method = $hmac_method;
 $user_sig_method = @$_GET['sig_method'];
 if ($user_sig_method) {
-  $sig_methods = $test_server->get_signature_methods();
   $sig_method = $sig_methods[$user_sig_method];
 }
 
@@ -87,7 +86,6 @@ A successful request will echo the non-OAuth parameters sent to it, for example:
 <?php
 $sig_methods = $test_server->get_signature_methods();
 foreach ($sig_methods as $key => $method) {
-  
   print "<li>$key";
   if ($key != $sig_method->get_name()) {
     print "(<a href='?sig_method=$key'>switch</a>)";
