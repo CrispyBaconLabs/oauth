@@ -56,25 +56,20 @@ class OAuthSignatureMethod_HMAC_SHA1 extends OAuthSignatureMethod {/*{{{*/
   }/*}}}*/
 
   public function build_signature($request, $consumer, $token) {/*{{{*/
-    $sig = array(
-      OAuthUtil::urlencodeRFC3986($request->get_normalized_http_method()),
-      OAuthUtil::urlencodeRFC3986($request->get_normalized_http_url()),
-      OAuthUtil::urlencodeRFC3986($request->get_signable_parameters()),
+    $base_string = $request->get_signature_base_string();
+    $request->base_string = $base_string;
+
+    $key_parts = array(
+      $consumer->secret
     );
-
-    $key = OAuthUtil::urlencodeRFC3986($consumer->secret) . "&";
-
     if ($token) {
-      $key .= OAuthUtil::urlencodeRFC3986($token->secret);
+      $key_parts[] = $token;
     }
 
-    $raw = implode("&", $sig);
-    // for debug purposes
-    $request->base_string = $raw;
+    $key_parts = array_map(array('OAuthUtil','urlencodeRFC3986'), $key_parts);
+    $key = implode('&', $key_parts);
 
-    // this is silly.
-    $hashed = base64_encode(hash_hmac("sha1", $raw, $key, TRUE));
-    return $hashed;
+    return base64_encode( hash_hmac('sha1', $base_string, $key, true));
   }/*}}}*/
 }/*}}}*/
 
@@ -172,33 +167,83 @@ class OAuthRequest {/*{{{*/
     return new OAuthRequest($http_method, $http_url, $parameters);
   }/*}}}*/
 
-  public function set_parameter($name, $value) {
+  public function set_parameter($name, $value) {/*{{{*/
     $this->parameters[$name] = $value;
-  }
+  }/*}}}*/
 
-  public function get_parameter($name) {
+  public function get_parameter($name) {/*{{{*/
     return $this->parameters[$name];
-  }
+  }/*}}}*/
 
-  public function get_parameters() {
+  public function get_parameters() {/*{{{*/
     return $this->parameters;
-  }
+  }/*}}}*/
 
   /**
-   * return a string that consists of all the parameters that need to be signed
+   * Returns the normalized parameters of the request
+   * 
+   * This will be all (except oauth_signature) parameters,
+   * sorted first by key, and if duplicate keys, then by
+   * value.
+   *
+   * The returned string will be all the key=value pairs
+   * concated by &.
+   * 
+   * @return string
    */
   public function get_signable_parameters() {/*{{{*/
-    $sorted = $this->parameters;
-    ksort($sorted);
-
-    $total = array();
-    foreach ($sorted as $k => $v) {
-      if ($k == "oauth_signature") continue;
-      //$total[] = $k . "=" . $v;
-      // andy, apparently we need to double encode or something yuck
-      $total[] = OAuthUtil::urlencodeRFC3986($k) . "=" . OAuthUtil::urlencodeRFC3986($v);
+    // Grab all parameters
+    $params = $this->parameters;
+		
+    // Remove oauth_signature if present
+    if (isset($params['oauth_signature'])) {
+      unset($params['oauth_signature']);
     }
-    return implode("&", $total);
+		
+    // Urlencode both keys and values
+    $keys = array_map(array('OAuthUtil', 'urlencodeRFC3986'), array_keys($params));
+    $values = array_map(array('OAuthUtil', 'urlencodeRFC3986'), array_values($params));
+    $params = array_combine($keys, $values);
+
+    // Sort by keys (natsort)
+    uksort($params, 'strnatcmp');
+
+    // Generate key=value pairs
+    $pairs = array();
+    foreach ($params as $key=>$value ) {
+      if (is_array($value)) {
+        // If the value is an array, it's because there are multiple 
+        // with the same key, sort them, then add all the pairs
+        natsort($value);
+        foreach ($value as $v2) {
+          $pairs[] = $key . '=' . $v2;
+        }
+      } else {
+        $pairs[] = $key . '=' . $value;
+      }
+    }
+		
+    // Return the pairs, concated with &
+    return implode('&', $pairs);
+  }/*}}}*/
+
+  /**
+   * Returns the base string of this request
+   *
+   * The base string defined as the method, the url
+   * and the parameters (normalized), each urlencoded
+   * and the concated with &.
+   */
+  public function get_signature_base_string() {/*{{{*/
+    $parts = array(
+      $this->get_normalized_http_method(),
+      $this->get_normalized_http_url(),
+      $this->get_signable_parameters()
+    );
+
+    $parts = array_map(array('OAuthUtil', 'urlencodeRFC3986'), $parts);
+
+    return implode('&', $parts);
   }/*}}}*/
 
   /**
