@@ -114,8 +114,8 @@ class OAuthRequest {/*{{{*/
    * attempt to build up a request from what was passed to the server
    */
   public static function from_request($http_method=NULL, $http_url=NULL, $parameters=NULL) {/*{{{*/
-    $schema = (!isset($_SERVER['HTTPS']) || $_SERVER['HTTPS'] != "on") ? 'http' : 'https';
-    @$http_url or $http_url = $schema . '://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
+    $scheme = (!isset($_SERVER['HTTPS']) || $_SERVER['HTTPS'] != "on") ? 'http' : 'https';
+    @$http_url or $http_url = $scheme . '://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
     @$http_method or $http_method = $_SERVER['REQUEST_METHOD'];
     
     $request_headers = OAuthRequest::get_headers();
