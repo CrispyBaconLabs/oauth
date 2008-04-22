@@ -123,6 +123,14 @@ foreach ($sig_methods as $key => $method) {
 ?>
 </ul>
 
+<?php 
+if ("RSA-SHA1" == $sig_method->get_name()) {
+  // passing test_server as a dummy referecne
+  print "<pre>" . $sig_method->fetch_private_cert($test_server). "</pre>\n";
+  print "<pre>" . $sig_method->fetch_public_cert($test_server) . "</pre>\n";
+}
+?>
+
 <h3>Further Resources</h3>
 <p>There is also a <a href="index.php">test server</a> implementation in here.</p>
 <p>The code running this example can be downloaded from the PHP section of the OAuth google code project: <a href="http://code.google.com/p/oauth/">http://code.google.com/p/oauth/</a>
