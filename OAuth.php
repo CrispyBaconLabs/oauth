@@ -60,11 +60,9 @@ class OAuthSignatureMethod_HMAC_SHA1 extends OAuthSignatureMethod {/*{{{*/
     $request->base_string = $base_string;
 
     $key_parts = array(
-      $consumer->secret
+      $consumer->secret,
+      ($token) ? $token->secret : ""
     );
-    if ($token) {
-      $key_parts[] = $token;
-    }
 
     $key_parts = array_map(array('OAuthUtil','urlencodeRFC3986'), $key_parts);
     $key = implode('&', $key_parts);
