@@ -23,7 +23,11 @@ if ($token) {
 
 
 if ($action == "request_token") {
-  $req_req = OAuthRequest::from_consumer_and_token($test_consumer, NULL, "GET", $endpoint, array());
+  $parsed = parse_url($endpoint);
+  $params = array();
+  parse_str($parsed['query'], $params);
+
+  $req_req = OAuthRequest::from_consumer_and_token($test_consumer, NULL, "GET", $endpoint, $params);
   $req_req->sign_request($sig_method, $test_consumer, NULL);
   if ($dump_request) {
     Header('Content-type: text/plain');
@@ -44,7 +48,11 @@ else if ($action == "authorize") {
   Header("Location: $auth_url");
 }
 else if ($action == "access_token") {
-  $acc_req = OAuthRequest::from_consumer_and_token($test_consumer, $test_token, "GET", $endpoint, array());
+  $parsed = parse_url($endpoint);
+  $params = array();
+  parse_str($parsed['query'], $params);
+
+  $acc_req = OAuthRequest::from_consumer_and_token($test_consumer, $test_token, "GET", $endpoint, $params);
   $acc_req->sign_request($sig_method, $test_consumer, $test_token);
   if ($dump_request) {
     Header('Content-type: text/plain');
@@ -54,19 +62,6 @@ else if ($action == "access_token") {
   }
   Header("Location: $acc_req");
 }
-
-
-
-$acc_token = new OAuthConsumer("accesskey", "accesssecret", 1);
-
-$req_req = OAuthRequest::from_consumer_and_token($test_consumer, NULL, "GET", $base_url . "/request_token.php", array());
-$req_req->sign_request($sig_method, $test_consumer, NULL);
-
-$acc_req = OAuthRequest::from_consumer_and_token($test_consumer, $req_token, "GET", $base_url . "/access_token.php");
-$acc_req->sign_request($sig_method, $test_consumer, $req_token);
-
-$echo_req = OAuthRequest::from_consumer_and_token($test_consumer, $acc_token, "GET", $base_url . "/echo_api.php", array("method"=> "foo", "bar" => "baz"));
-$echo_req->sign_request($sig_method, $test_consumer, $acc_token);
 
 ?>
 <html>
