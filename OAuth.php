@@ -127,13 +127,13 @@ class OAuthSignatureMethod_RSA_SHA1 extends OAuthSignatureMethod {/*{{{*/
     // Fetch the private key cert based on the request
     $cert = $this->fetch_private_cert($request);
 
-    //Pull the private key ID from the certificate
+    // Pull the private key ID from the certificate
     $privatekeyid = openssl_get_privatekey($cert);
 
-    //Check the computer signature against the one passed in the query
+    // Check the computed signature against the one passed in the query
     $ok = openssl_sign($base_string, $signature, $privatekeyid);   
 
-    //Release the key resource
+    // Release the key resource
     openssl_free_key($privatekeyid);
   
     return base64_encode($signature);
@@ -147,13 +147,13 @@ class OAuthSignatureMethod_RSA_SHA1 extends OAuthSignatureMethod {/*{{{*/
     // Fetch the public key cert based on the request
     $cert = $this->fetch_public_cert($request);
 
-    //Pull the public key ID from the certificate
+    // Pull the public key ID from the certificate
     $publickeyid = openssl_get_publickey($cert);
 
-    //Check the computer signature against the one passed in the query
+    // Check the computed signature against the one passed in the query
     $ok = openssl_verify($base_string, $decoded_sig, $publickeyid);   
 
-    //Release the key resource
+    // Release the key resource
     openssl_free_key($publickeyid);
   
     return $ok == 1;
@@ -696,7 +696,12 @@ class SimpleOAuthDataStore extends OAuthDataStore {/*{{{*/
   }/*}}}*/
 
   function lookup_nonce($consumer, $token, $nonce, $timestamp) {/*{{{*/
-    return dba_exists("nonce_$nonce", $this->dbh);
+    if (dba_exists("nonce_$nonce", $this->dbh)) {
+      return TRUE;
+    } else {
+      dba_insert("nonce_$nonce", "1", $this->dbh);
+      return FALSE;
+    }
   }/*}}}*/
 
   function new_token($consumer, $type="request") {/*{{{*/
