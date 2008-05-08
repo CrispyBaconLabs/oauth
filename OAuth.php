@@ -130,7 +130,7 @@ class OAuthSignatureMethod_RSA_SHA1 extends OAuthSignatureMethod {/*{{{*/
     // Pull the private key ID from the certificate
     $privatekeyid = openssl_get_privatekey($cert);
 
-    // Check the computed signature against the one passed in the query
+    // Sign using the key
     $ok = openssl_sign($base_string, $signature, $privatekeyid);   
 
     // Release the key resource
