@@ -1,3 +1,5 @@
 == 2008.07.15 ==
 * Another change to encoding per 
 	http://groups.google.com/group/oauth/browse_thread/thread/d39931d39b4af4bd
+* A change to port handling to better deal with https and the like per
+  http://groups.google.com/group/oauth/browse_thread/thread/1b203a51d9590226

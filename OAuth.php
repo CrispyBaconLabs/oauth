@@ -325,11 +325,16 @@ class OAuthRequest {/*{{{*/
   public function get_normalized_http_url() {/*{{{*/
     $parts = parse_url($this->http_url);
 
-    // FIXME: port should handle according to http://groups.google.com/group/oauth/browse_thread/thread/1b203a51d9590226
-    $port = (isset($parts['port']) && $parts['port'] != '80') ? ':' . $parts['port'] : '';
-    $path = (isset($parts['path'])) ? $parts['path'] : '';
+    $port = (@$parts['port']) ? $parts['port'] : '80';
+    $scheme = $parts['scheme'];
+    $host = $parts['host'];
+    $path = @$parts['path'];
 
-    return $parts['scheme'] . '://' . $parts['host'] . $port . $path;
+    if (($scheme == 'https' && $port != '443')
+        || ($scheme == 'http' && $port != '80')) {
+      $host = "$host:$port";
+    }
+    return "$scheme://$host$path";
   }/*}}}*/
 
   /**
