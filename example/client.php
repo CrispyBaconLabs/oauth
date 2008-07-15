@@ -89,7 +89,8 @@ foreach ($sig_methods as $name=> $method) {
 ?>
 </select>
 <h3>Enter The Endpoint to Test</h3>
-endpoint: <input type="text" name="endpoint" value="<?php echo $endpoint; ?>" /><br />
+endpoint: <input type="text" name="endpoint" value="<?php echo $endpoint; ?>" size="100"/><br />
+<small style="color: green">Note: You can include query parameters in there to have them parsed in and signed too</small>
 <h3>Enter Your Consumer Key / Secret</h3>
 consumer key: <input type="text" name="key" value="<?php echo $key; ?>" /><br />
 consumer secret: <input type="text" name="secret" value="<?php echo $secret;?>" /><br />

@@ -5,3 +5,6 @@
   http://groups.google.com/group/oauth/browse_thread/thread/1b203a51d9590226
 * Fixed a small bug per
 	http://code.google.com/p/oauth/issues/detail?id=26
+* Added missing base_string debug info when using RSA-SHA1
+* Increased size of example endpoint input field and added note about
+  query strings
