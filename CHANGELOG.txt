@@ -1,0 +1,3 @@
+== 2008.07.15 ==
+* Another change to encoding per 
+	http://groups.google.com/group/oauth/browse_thread/thread/d39931d39b4af4bd
