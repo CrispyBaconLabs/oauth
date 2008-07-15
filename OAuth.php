@@ -356,8 +356,8 @@ class OAuthRequest {/*{{{*/
   /**
    * builds the Authorization: header
    */
-  public function to_header() {/*{{{*/
-    $out ='"Authorization: OAuth realm="",';
+  public function to_header($realm="") {/*{{{*/
+    $out ='"Authorization: OAuth realm="' . $realm . '",';
     $total = array();
     foreach ($this->parameters as $k => $v) {
       if (substr($k, 0, 5) != "oauth") continue;
