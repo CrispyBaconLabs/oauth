@@ -409,8 +409,10 @@ class OAuthRequest {/*{{{*/
    * parameters, has to do some unescaping
    */
   private static function split_header($header) {/*{{{*/
-    // this should be a regex
-    // error cases: commas in parameter values
+    // remove 'OAuth ' at the start of a header 
+    $header = substr($header, 6); 
+
+    // error cases: commas in parameter values?
     $parts = explode(",", $header);
     $out = array();
     foreach ($parts as $param) {
