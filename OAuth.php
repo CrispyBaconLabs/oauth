@@ -728,9 +728,15 @@ class SimpleOAuthDataStore extends OAuthDataStore {/*{{{*/
 
 class OAuthUtil {/*{{{*/
   public static function urlencodeRFC3986($string) {/*{{{*/
-    return str_replace('%7E', '~', rawurlencode($string));
+    return str_replace('+', '%20', 
+                       str_replace('%7E', '~', rawurlencode($string)));
+    
   }/*}}}*/
     
+
+  // This decode function isn't taking into consideration the above 
+  // modifications to the encoding process. However, this method doesn't 
+  // seem to be used anywhere so leaving it as is.
   public static function urldecodeRFC3986($string) {/*{{{*/
     return rawurldecode($string);
   }/*}}}*/
