@@ -200,7 +200,7 @@ class OAuthRequest {/*{{{*/
       if ($http_method == "GET") {
         $req_parameters = $_GET;
       } 
-      else if ($http_method = "POST") {
+      else if ($http_method == "POST") {
         $req_parameters = $_POST;
       } 
       $parameters = array_merge($header_parameters, $req_parameters);
