@@ -36,10 +36,8 @@ class MockOAuthDataStore(oauth.OAuthDataStore):
         return None
 
     def lookup_nonce(self, oauth_consumer, oauth_token, nonce):
-        if oauth_token and oauth_consumer.key == self.consumer.key and (oauth_token.key == self.request_token.key or token.key == self.access_token.key) and nonce == self.nonce:
+        if oauth_token and oauth_consumer.key == self.consumer.key and (oauth_token.key == self.request_token.key or oauth_token.key == self.access_token.key) and nonce == self.nonce:
             return self.nonce
-        else:
-            raise oauth.OAuthError('Nonce not found: %s' % str(nonce))
         return None
 
     def fetch_request_token(self, oauth_consumer):
@@ -95,7 +93,7 @@ class RequestHandler(BaseHTTPRequestHandler):
                 pass
 
         # construct the oauth request from the request parameters
-        oauth_request = oauth.OAuthRequest.from_request(self.command, self.path, headers=self.headers, postdata=postdata)
+        oauth_request = oauth.OAuthRequest.from_request(self.command, self.path, headers=self.headers, query_string=postdata)
 
         # request token
         if self.path.startswith(REQUEST_TOKEN_URL):
@@ -121,7 +119,7 @@ class RequestHandler(BaseHTTPRequestHandler):
                 self.send_response(200, 'OK')
                 self.end_headers()
                 # return the callback url (to show server has it)
-                self.wfile.write('callback: %s' %callback)
+                self.wfile.write('callback: %s' % callback)
                 # authorize the token (kind of does nothing for now)
                 token = self.oauth_server.authorize_token(token, None)
                 self.wfile.write('\n')

@@ -59,7 +59,8 @@ class SimpleOAuthClient(oauth.OAuthClient):
     def access_resource(self, oauth_request):
         # via post body
         # -> some protected resources
-        self.connection.request('POST', RESOURCE_URL, body=oauth_request.to_postdata())
+        headers = {'Content-Type' :'application/x-www-form-urlencoded'}
+        self.connection.request('POST', RESOURCE_URL, body=oauth_request.to_postdata(), headers=headers)
         response = self.connection.getresponse()
         return response.read()
 
@@ -127,7 +128,7 @@ def run_example():
     # access some protected resources
     print '* Access protected resources ...'
     pause()
-    parameters = {'file': 'vacation.jpg', 'size': 'original'} # resource specific params
+    parameters = {'file': 'vacation.jpg', 'size': 'original', 'oauth_callback': CALLBACK_URL} # resource specific params
     oauth_request = oauth.OAuthRequest.from_consumer_and_token(consumer, token=token, http_method='POST', http_url=RESOURCE_URL, parameters=parameters)
     oauth_request.sign_request(signature_method, consumer, token)
     print 'REQUEST (via post body)'
@@ -143,5 +144,9 @@ def pause():
     time.sleep(1)
 
 if __name__ == '__main__':
-    run_example()
+    try:
+      run_example()
+    except oauth.OAuthError, e:
+      print e.message
+      raise
     print 'Done.'

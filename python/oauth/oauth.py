@@ -12,7 +12,7 @@ SIGNATURE_METHOD = 'PLAINTEXT'
 
 # Generic exception class
 class OAuthError(RuntimeError):
-    def __init__(self, message='OAuth error occured'):
+    def __init__(self, message='OAuth error occured.'):
         self.message = message
 
 # optional WWW-Authenticate header (401 error)
@@ -66,10 +66,13 @@ class OAuthToken(object):
     # oauth_token_secret=digg&oauth_token=digg
     @staticmethod   
     def from_string(s):
-        params = cgi.parse_qs(s, keep_blank_values=False)
-        key = params['oauth_token'][0]
-        secret = params['oauth_token_secret'][0]
-        return OAuthToken(key, secret)
+        try:
+            params = cgi.parse_qs(s, keep_blank_values=False)
+            key = params['oauth_token'][0]
+            secret = params['oauth_token_secret'][0]
+            return OAuthToken(key, secret)
+        except KeyError, e:
+            raise OAuthError("Invalid token response, got: %s" % s)
 
     def __str__(self):
         return self.to_string()
@@ -124,7 +127,7 @@ class OAuthRequest(object):
         # add the oauth parameters
         if self.parameters:
             for k, v in self.parameters.iteritems():
-                auth_header += ', %s="%s"' % (k, v)
+                auth_header += ', %s="%s"' % (k, escape(str(v)))
         return {'Authorization': auth_header}
 
     # serialize as post data for a POST request
@@ -171,39 +174,37 @@ class OAuthRequest(object):
         return signature_method.build_signature(self, consumer, token)
 
     @staticmethod
-    def from_request(http_method, http_url, headers=None, postdata=None, parameters=None):
+    def from_request(http_method, http_url, headers=None, parameters=None, query_string=None):
+        # combine multiple parameter sources
+        if parameters is None:
+          parameters = {}
 
-        # let the library user override things however they'd like, if they know
-        # which parameters to use then go for it, for example XMLRPC might want to
-        # do this
-        if parameters is not None:
-            return OAuthRequest(http_method, http_url, parameters)
-
-        # from the headers
+        # headers
         if headers and 'Authorization' in headers:
-            try:
-                auth_header = headers['Authorization']
-                # check that the authorization header is OAuth
-                auth_header.index('OAuth')
-                # get the parameters from the header
-                parameters = OAuthRequest._split_header(auth_header)
-                return OAuthRequest(http_method, http_url, parameters)
-            except:
-                raise OAuthError('Unable to parse OAuth parameters from Authorization header.')
+            auth_header = headers['Authorization']
+            # check that the authorization header is OAuth
+            if auth_header.index('OAuth') > -1:
+                try:
+                    # get the parameters from the header
+                    header_params = OAuthRequest._split_header(auth_header)
+                    parameters.update(header_params)
+                except:
+                    raise OAuthError('Unable to parse OAuth parameters from Authorization header.')
 
-        # from the parameter string (post body)
-        if http_method == 'POST' and postdata is not None:
-            parameters = OAuthRequest._split_url_string(postdata)
+        # GET or POST query string
+        if query_string:
+            query_params = OAuthRequest._split_url_string(query_string)
+            parameters.update(query_params)
 
-        # from the url string
-        elif http_method == 'GET':
-            param_str = urlparse.urlparse(http_url).query
-            parameters = OAuthRequest._split_url_string(param_str)
+        # URL parameters
+        param_str = urlparse.urlparse(http_url)[4] # query
+        url_params = OAuthRequest._split_url_string(param_str)
+        parameters.update(url_params)
 
         if parameters:
             return OAuthRequest(http_method, http_url, parameters)
 
-        raise OAuthError('Missing all OAuth parameters. OAuth parameters must be in the headers, post body, or url.')
+        return None
 
     @staticmethod
     def from_consumer_and_token(oauth_consumer, token=None, http_method=HTTP_METHOD, http_url=None, parameters=None):
@@ -289,7 +290,7 @@ class OAuthServer(object):
         try:
             # get the request token for authorization
             token = self._get_token(oauth_request, 'request')
-        except:
+        except OAuthError:
             # no token required for the initial token request
             version = self._get_version(oauth_request)
             consumer = self._get_consumer(oauth_request)
@@ -339,7 +340,7 @@ class OAuthServer(object):
         except:
             version = VERSION
         if version and version != self.version:
-            raise OAuthError('OAuth version %s not supported' % str(version))
+            raise OAuthError('OAuth version %s not supported.' % str(version))
         return version
 
     # figure out the signature with some defaults
@@ -360,10 +361,10 @@ class OAuthServer(object):
     def _get_consumer(self, oauth_request):
         consumer_key = oauth_request.get_parameter('oauth_consumer_key')
         if not consumer_key:
-            raise OAuthError('Invalid consumer key')
+            raise OAuthError('Invalid consumer key.')
         consumer = self.data_store.lookup_consumer(consumer_key)
         if not consumer:
-            raise OAuthError('Invalid consumer')
+            raise OAuthError('Invalid consumer.')
         return consumer
 
     # try to find the token for the provided request token key
@@ -382,12 +383,13 @@ class OAuthServer(object):
         try:
             signature = oauth_request.get_parameter('oauth_signature')
         except:
-            raise OAuthError('Missing signature')
-
-        # attempt to construct the same signature
+            raise OAuthError('Missing signature.')
+        # validate the signature
         valid_sig = signature_method.check_signature(oauth_request, consumer, token, signature)
         if not valid_sig:
-          raise OAuthError("Invalid signature")
+            key, base = signature_method.build_signature_base_string(oauth_request, consumer, token)
+            raise OAuthError('Invalid signature. Expected signature base string: %s' % base)
+        built = signature_method.build_signature(oauth_request, consumer, token)
 
     def _check_timestamp(self, timestamp):
         # verify that timestamp is recentish
@@ -399,11 +401,9 @@ class OAuthServer(object):
 
     def _check_nonce(self, consumer, token, nonce):
         # verify that the nonce is uniqueish
-        try:
-            self.data_store.lookup_nonce(consumer, token, nonce)
+        nonce = self.data_store.lookup_nonce(consumer, token, nonce)
+        if nonce:
             raise OAuthError('Nonce already used: %s' % str(nonce))
-        except:
-            pass
 
 # OAuthClient is a worker to attempt to execute a request
 class OAuthClient(object):
@@ -474,8 +474,8 @@ class OAuthSignatureMethod(object):
         raise NotImplementedError
 
     def check_signature(self, oauth_request, consumer, token, signature):
-      built = self.build_signature(oauth_request, consumer, token)
-      return built == signature
+        built = self.build_signature(oauth_request, consumer, token)
+        return built == signature
 
 class OAuthSignatureMethod_HMAC_SHA1(OAuthSignatureMethod):
 
@@ -493,6 +493,7 @@ class OAuthSignatureMethod_HMAC_SHA1(OAuthSignatureMethod):
         if token:
             key += escape(token.secret)
         raw = '&'.join(sig)
+        oauth_request.base_string = raw
         return key, raw
 
     def build_signature(self, oauth_request, consumer, token):
@@ -517,9 +518,9 @@ class OAuthSignatureMethod_PLAINTEXT(OAuthSignatureMethod):
 
     def build_signature_base_string(self, oauth_request, consumer, token):
         # concatenate the consumer key and secret
-        sig = escape(consumer.secret)
+        sig = escape(consumer.secret) + '&'
         if token:
-            sig = '&'.join((sig, escape(token.secret)))
+            sig = sig + escape(token.secret)
         return sig
 
     def build_signature(self, oauth_request, consumer, token):
