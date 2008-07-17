@@ -66,13 +66,10 @@ class OAuthToken(object):
     # oauth_token_secret=digg&oauth_token=digg
     @staticmethod   
     def from_string(s):
-        try:
-            params = cgi.parse_qs(s, keep_blank_values=False)
-            key = params['oauth_token'][0]
-            secret = params['oauth_token_secret'][0]
-            return OAuthToken(key, secret)
-        except KeyError, e:
-            raise OAuthError("Invalid token response, got: %s" % s)
+        params = cgi.parse_qs(s, keep_blank_values=False)
+        key = params['oauth_token'][0]
+        secret = params['oauth_token_secret'][0]
+        return OAuthToken(key, secret)
 
     def __str__(self):
         return self.to_string()
@@ -177,7 +174,7 @@ class OAuthRequest(object):
     def from_request(http_method, http_url, headers=None, parameters=None, query_string=None):
         # combine multiple parameter sources
         if parameters is None:
-          parameters = {}
+            parameters = {}
 
         # headers
         if headers and 'Authorization' in headers:
@@ -493,7 +490,6 @@ class OAuthSignatureMethod_HMAC_SHA1(OAuthSignatureMethod):
         if token:
             key += escape(token.secret)
         raw = '&'.join(sig)
-        oauth_request.base_string = raw
         return key, raw
 
     def build_signature(self, oauth_request, consumer, token):
