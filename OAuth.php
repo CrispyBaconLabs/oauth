@@ -736,7 +736,7 @@ class SimpleOAuthDataStore extends OAuthDataStore {/*{{{*/
 
 class OAuthUtil {/*{{{*/
   public static function urlencodeRFC3986($string) {/*{{{*/
-    return str_replace('+', '%20', 
+    return str_replace('+', ' ',
                        str_replace('%7E', '~', rawurlencode($string)));
     
   }/*}}}*/
