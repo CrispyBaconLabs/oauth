@@ -1,3 +1,8 @@
+== 2008.08.04 ==
+* Added LICENSE.txt file with MIT license, copyright owner is perhaps
+	dubious however.
+== 2008.07.22 ==
+* Change to encoding to fix last change to encoding of spaces
 == 2008.07.15 ==
 * Another change to encoding per 
 	http://groups.google.com/group/oauth/browse_thread/thread/d39931d39b4af4bd
