@@ -11,7 +11,7 @@ class OAuthConsumer {/*{{{*/
   public $key;
   public $secret;
 
-  function __construct($key, $secret, $callback_url=NULL) {/*{{{*/
+  function __construct($key, $secret, $callback_url=null) {/*{{{*/
     $this->key = $key;
     $this->secret = $secret;
     $this->callback_url = $callback_url;
@@ -22,14 +22,24 @@ class OAuthToken {/*{{{*/
   // access tokens and request tokens
   public $key;
   public $secret;
+  public $expires;
+  
+  public $session_handle;
+  public $session_expires;
 
   /**
    * key = the token
    * secret = the token secret
+   * expires = the number of seconds in the future the token expires
    */
-  function __construct($key, $secret) {/*{{{*/
+  function __construct($key, $secret, $expires = null, $session_handle = null, $session_expires = null) {/*{{{*/
     $this->key = $key;
     $this->secret = $secret;
+    
+    // optional oauth 2008.1 additions to the token
+    if(!empty($session_handle)) { $this->session_handle = $session_handle; }
+    if(!empty($expires)) { $this->expires = time() + $expires; }
+    if(!empty($session_expires)) { $this->session_expires = time() + $session_expires; }
   }/*}}}*/
 
   /**
@@ -38,11 +48,26 @@ class OAuthToken {/*{{{*/
    */
   function to_string() {/*{{{*/
     return "oauth_token=" . OAuthUtil::urlencodeRFC3986($this->key) . 
-        "&oauth_token_secret=" . OAuthUtil::urlencodeRFC3986($this->secret);
+        "&oauth_token_secret=" . OAuthUtil::urlencodeRFC3986($this->secret) .
+        // if the token supports 1.1 extensions, include them. Otherwise, pretend it doesn't exist.
+        ((!empty($this->expires)) ? "&oauth_expires_in=" . OAuthUtil::urlencodeRFC3986($this->expires-time()) : "") .
+        ((!empty($this->session_handle)) ? "&oauth_session_handle=" . OAuthUtil::urlencodeRFC3986($this->session_handle) : "") .
+        ((!empty($this->session_expires)) ? "&oauth_authorization_expires_in=" . OAuthUtil::urlencodeRFC3986($this->session_expires-time()) : "");
+        
   }/*}}}*/
 
   function __toString() {/*{{{*/
     return $this->to_string();
+  }/*}}}*/
+
+  function isExpired() {/*{{{*/
+    if(empty($this->expires)) return false;
+    else return ($this->expires < time());
+  }/*}}}*/
+  
+  function session_expired() {/*{{{*/
+  	if(empty($this->session_expires)) return false;
+  	else return ($this->session_expires < time());
   }/*}}}*/
 }/*}}}*/
 
@@ -132,6 +157,7 @@ class OAuthSignatureMethod_RSA_SHA1 extends OAuthSignatureMethod {/*{{{*/
     $privatekeyid = openssl_get_privatekey($cert);
 
     // Sign using the key
+    $signature=null;
     $ok = openssl_sign($base_string, $signature, $privatekeyid);   
 
     // Release the key resource
@@ -229,6 +255,9 @@ class OAuthRequest {/*{{{*/
 
     if ($token) {
       $parameters['oauth_token'] = $token->key;
+      if($token->session_handle) {
+      	$parameters['oauth_session_handle'] = $token->session_handle;
+      }
     }
     return new OAuthRequest($http_method, $http_url, $parameters);
   }/*}}}*/
@@ -509,10 +538,25 @@ class OAuthServer {/*{{{*/
     $this->check_signature($request, $consumer, $token);
 
     $new_token = $this->data_store->new_access_token($token, $consumer);
-
     return $new_token;
   }/*}}}*/
+  
+  public function refresh_access_token(&$request) {/*{{{*/
+    $this->get_version($request);
 
+    $consumer = $this->get_consumer($request);
+
+    // requires authorized ACCESS token
+    $token = $this->get_token($request, $consumer, "access");
+
+    $this->check_signature($request, $consumer, $token);
+    
+    $this->check_session($request, $consumer, $token);
+
+    $new_token = $this->data_store->renew_access_token($token, $consumer);
+    return $new_token;
+  }/*}}}*/
+  
   /**
    * verify an api call, checks all the parameters
    */
@@ -531,10 +575,10 @@ class OAuthServer {/*{{{*/
   private function get_version(&$request) {/*{{{*/
     $version = $request->get_parameter("oauth_version");
     if (!$version) {
-      $version = 1.0;
+      throw new OAuthException("oauth_problem=parameter_absent&oauth_parameters_absent=oauth_version");
     }
     if ($version && $version != $this->version) {
-      throw new OAuthException("OAuth version '$version' not supported");
+      throw new OAuthException("oauth_problem=version_rejected&oauth_acceptable_verions=" . $this->version);
     }
     return $version;
   }/*}}}*/
@@ -551,8 +595,8 @@ class OAuthServer {/*{{{*/
     if (!in_array($signature_method, 
                   array_keys($this->signature_methods))) {
       throw new OAuthException(
-        "Signature method '$signature_method' not supported try one of the following: " . implode(", ", array_keys($this->signature_methods))
-      );      
+        "oauth_problem=signature_method_rejected"
+      );          
     }
     return $this->signature_methods[$signature_method];
   }/*}}}*/
@@ -563,12 +607,12 @@ class OAuthServer {/*{{{*/
   private function get_consumer(&$request) {/*{{{*/
     $consumer_key = @$request->get_parameter("oauth_consumer_key");
     if (!$consumer_key) {
-      throw new OAuthException("Invalid consumer key");
+      throw new OAuthException("oauth_problem=parameter_absent&oauth_parameters_absent=oauth_consumer_key");
     }
 
     $consumer = $this->data_store->lookup_consumer($consumer_key);
     if (!$consumer) {
-      throw new OAuthException("Invalid consumer");
+      throw new OAuthException("oauth_problem=consumer_key_unknown");
     }
 
     return $consumer;
@@ -583,7 +627,10 @@ class OAuthServer {/*{{{*/
       $consumer, $token_type, $token_field
     );
     if (!$token) {
-      throw new OAuthException("Invalid $token_type token: $token_field");
+      throw new OAuthException("oauth_problem=token_rejected");
+    }
+    if($token->isExpired()) {
+      throw new OAuthException("oauth_problem=token_expired");
     }
     return $token;
   }/*}}}*/
@@ -611,7 +658,7 @@ class OAuthServer {/*{{{*/
     );
 
     if (!$valid_sig) {
-      throw new OAuthException("Invalid signature");
+      throw new OAuthException("oauth_problem=signature_invalid");
     }
   }/*}}}*/
 
@@ -621,8 +668,8 @@ class OAuthServer {/*{{{*/
   private function check_timestamp($timestamp) {/*{{{*/
     // verify that timestamp is recentish
     $now = time();
-    if ($now - $timestamp > $this->timestamp_threshold) {
-      throw new OAuthException("Expired timestamp, yours $timestamp, ours $now");
+    if (($now - $timestamp) > $this->timestamp_threshold) {
+      throw new OAuthException("oauth_problem=timestamp_refused&oauth_acceptable_timestamps=" . $now - $this->timestamp_threshold / 2 . "-" . $now + $this->timestamp_threshold / 2);
     }
   }/*}}}*/
 
@@ -633,11 +680,18 @@ class OAuthServer {/*{{{*/
     // verify that the nonce is uniqueish
     $found = $this->data_store->lookup_nonce($consumer, $token, $nonce, $timestamp);
     if ($found) {
-      throw new OAuthException("Nonce already used: $nonce");
+      throw new OAuthException("oauth_problem=nonce_used");
     }
   }/*}}}*/
 
-
+  private function check_session(&$request, $consumer, $token) {/*{{{*/
+  	if(@$request->get_parameter("oauth_session_handle") != $token->session_handle) {
+  		throw new OAuthException("oauth_problem=token_not_renewable");
+  	}
+  	if($token->session_expired()) {
+  		throw new OAuthException("oauth_problem=token_expired");
+  	}
+  }/*}}}*/
 
 }/*}}}*/
 
@@ -664,7 +718,12 @@ class OAuthDataStore {/*{{{*/
     // is authorized
     // should also invalidate the request token
   }/*}}}*/
-
+  
+  function renew_access_token($token, $consumer) {/*{{{*/
+    // return a new access token attached to this consumer
+    // for the user associated with this token if the SESSION HANDLE
+    // is authorized
+  }/*}}}*/
 }/*}}}*/
 
 
@@ -672,9 +731,17 @@ class OAuthDataStore {/*{{{*/
  */
 class SimpleOAuthDataStore extends OAuthDataStore {/*{{{*/
   private $dbh;
+  
+  public $request_expiration;
+  public $access_expiration;
+  public $session_expiration;
 
-  function __construct($path = "oauth.gdbm") {/*{{{*/
+  function __construct($path = "oauth.gdbm", $request_expiration = null, $access_expiration = null, $session_expiraton = null) {/*{{{*/
     $this->dbh = dba_popen($path, 'c', 'gdbm');
+    
+    if(!empty($request_expiration)) { $this->request_expiration = $request_expiration; } 
+    if(!empty($access_expiration)) { $this->access_expiration = $access_expiration; } 
+    if(!empty($session_expiraton)) { $this->session_expiration = $session_expiraton; } 
   }/*}}}*/
 
   function __destruct() {/*{{{*/
@@ -717,7 +784,8 @@ class SimpleOAuthDataStore extends OAuthDataStore {/*{{{*/
   function new_token($consumer, $type="request") {/*{{{*/
     $key = md5(time());
     $secret = time() + time();
-    $token = new OAuthToken($key, md5(md5($secret)));
+    // NEW IN 2008.1 - add appropriate expiration to token
+    $token = new OAuthToken($key, md5(md5($secret)),$this->{$type."_expiration"});
     if (!dba_insert("${type}_$key", serialize($token), $this->dbh)) {
       throw new OAuthException("doooom!");
     }
@@ -727,13 +795,29 @@ class SimpleOAuthDataStore extends OAuthDataStore {/*{{{*/
   function new_request_token($consumer) {/*{{{*/
     return $this->new_token($consumer, "request");
   }/*}}}*/
-
-  function new_access_token($token, $consumer) {/*{{{*/
-
+  
+  private function create_access_token($token, $consumer) {/*{{{*/
     $token = $this->new_token($consumer, 'access');
-    dba_delete("request_" . $token->key, $this->dbh);
+    
+    // NEW IN 2008.1 - add session handle if session expiration is not null
+    if(!empty($this->session_expiration)) {
+    	$token->session_handle_expires = $this->session_expiration;
+    	$token->session_handle = md5(time()*3);
+    }
+
     return $token;
   }/*}}}*/
+
+  function new_access_token($token, $consumer) {/*{{{*/
+	$token = create_access_token($token, $consumer);
+    dba_delete("request_" . $token->key, $this->dbh);
+	return $token;
+  }/*}}}*/
+  
+  function renew_access_token($token, $consumer) {/*{{{*/
+  	$token = create_access_token($token, $consumer);
+  	return $token;
+  } /*}}}*/
 }/*}}}*/
 
 class OAuthUtil {/*{{{*/
