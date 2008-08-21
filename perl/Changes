@@ -1,0 +1,44 @@
+Revision history for Net-OAuth
+
+0.01    Sun, 30 Sep 2007 13:35:06 UTC
+        First version, released on an unsuspecting world.
+
+0.02    Tue, 02 Oct 2007 07:35:17 UTC
+        Added RSA-SHA1 support
+
+0.03    Mon, 15 Oct 2007 01:35:17 UTC
+        Fixed header parsing
+
+0.04    Fri, 19 Oct 2007 16:45:03 UTC
+        Integrated patch from SARTAK, fixing signature for RequestTokenRequest with HMAC-SHA1
+
+0.05    Mon, 19 Nov 2007 03:30:05 UTC
+        Integrated patch from Nobuo Danjou, for Draft 6 spec compliance
+
+0.06    Sat, 08 Mar 2008 00:57:40 UTC
+        Removed live test that stopped working
+
+0.07    Sun, 01 Jun 2008 16:04:26 UTC
+        Added a factory class, Net::OAuth
+				Added several 'Response' classes
+				Added UserAuthRequest and UserAuthResponse
+				Created a Message base class from which Request and Response inherit
+				Added some introductory documentation
+				Added more tests
+				Phew!
+
+0.08   	Mon, 02 Jun 2008 17:41:52 UTC
+  			Fixed test failures found in 0.07.
+        More docs.
+        Added more deserialization methods.
+        Changed factory invocation from message('foo') to message('foo')->new(), to allow
+        deserialization methods to be used instead of new().
+
+0.09		Tue, 03 Jun 2008 03:46:32 UTC
+				Fixed another annoying test failure
+
+0.1			Wed, 04 Jun 2008 16:27:50 UTC
+				Added demo, fixed docs
+				
+0.11    Wed, 04 Jun 2008 16:50:14 UTC
+				Doc edits

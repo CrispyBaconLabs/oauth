@@ -1,0 +1,10 @@
+---
+base_url: "http://oauth.kg23.com"
+private_key: "/home/kg23/oauth.pem"
+consumer_key: "oauth.kg23.com"
+# You probably dont need to change anything past this point
+contacts_feed_url: "http://www.google.com/m8/feeds/contacts/default/full"
+request_token_endpoint: "https://www.google.com/accounts/OAuthGetRequestToken"
+user_auth_endpoint: "https://www.google.com/accounts/OAuthAuthorizeToken"
+request_scope: "http://www.google.com/m8/feeds"
+access_token_endpoint: "https://www.google.com/accounts/OAuthGetAccessToken"

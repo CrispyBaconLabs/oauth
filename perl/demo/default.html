@@ -1,0 +1,41 @@
+[% WRAPPER wrapper.html %]
+
+<p>Hello.  This page demonstrates the <a href="http://oauth.net">OAuth protocol</a>.  It uses OAuth to access the <a href="http://groups.google.com/group/oauth/browse_thread/thread/75ee6d973930c791/48f75bfdc1603b7c">Google Contacts API</a>.</p>
+
+[% IF c.session.param('errors').size %]
+<p style="color:red">
+[% FOREACH error IN c.session.param('errors') %]
+[% error %] <br />
+[% END %]
+</p>
+[% dummy = c.session.clear('errors') %]
+[% END %]
+
+[% IF c.session.param('token') %]
+
+<p style="color:green">Got Access Token <a href="[% c.config_param('base_url') %]/logout">[Reset]</a></p>
+
+[% IF contacts.size %]
+
+<p>Contacts retrieved successfully!  Here is a random selection:</p>
+
+<ul>
+[% FOREACH item IN contacts %]
+<li>
+[% item.textContent %]
+[% BREAK IF loop.count > 10 %]
+</li>
+[% END %]
+</ul>
+[% ELSE %]
+
+<p>No contacts found</p>
+
+[% END %]
+
+
+[% ELSE %]
+<p><a href="[% c.config_param('base_url') %]/login">Click here to begin</a></p>
+[% END %]
+
+[% END %]
