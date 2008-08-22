@@ -50,17 +50,35 @@ class OAuthToken(object):
     # access tokens and request tokens
     key = None
     secret = None
+    expires = None
+    
+    session_handle = None
+    session_expires = None
 
     '''
     key = the token
     secret = the token secret
     '''
-    def __init__(self, key, secret):
+    def __init__(self, key, secret, expires=None, session_handle=None, session_expires=None):
         self.key = key
         self.secret = secret
+        
+        if expires:
+            self.expires = int(expires) + int(time.time())
+        if session_handle:
+            self.session_handle = session_handle
+        if session_expires:
+            self.session_expires = int(session_expires) + int(time.time())
 
     def to_string(self):
-        return urllib.urlencode({'oauth_token': self.key, 'oauth_token_secret': self.secret})
+        params = {'oauth_token': self.key, 'oauth_token_secret': self.secret}
+        if self.expires:
+            params['oauth_expires_in'] = self.expires - int(time.time())
+        if self.session_handle:
+            params['oauth_session_handle'] = self.session_handle
+        if self.session_expires:
+            params['oauth_authorization_expires_in'] = self.session_expires - int(time.time())
+        return urllib.urlencode(params)
 
     # return a token from something like:
     # oauth_token_secret=digg&oauth_token=digg
@@ -69,7 +87,30 @@ class OAuthToken(object):
         params = cgi.parse_qs(s, keep_blank_values=False)
         key = params['oauth_token'][0]
         secret = params['oauth_token_secret'][0]
-        return OAuthToken(key, secret)
+        expires = None
+        session = None
+        session_expires = None
+        
+        if 'oauth_expires_in' in params:
+            expires = params['oauth_expires_in'][0]
+        if 'oauth_session_handle' in params:
+            session = params['oauth_session_handle'][0]
+        if 'oauth_authorization_expires_in' in params:
+            session_expires = params['oauth_authorization_expires_in'][0]
+        
+        return OAuthToken(key, secret, expires, session, session_expires)
+    
+    def isExpired(self):
+        if self.expires and self.expires < int(time.time()):
+            return True
+        else:
+            return False
+        
+    def session_expired(self):
+        if self.session_expires and self.session_expires < int(time.time()):
+            return True
+        else:
+            return False
 
     def __str__(self):
         return self.to_string()
@@ -220,6 +261,9 @@ class OAuthRequest(object):
 
         if token:
             parameters['oauth_token'] = token.key
+            if token.session_handle:
+                parameters['oauth_session_handle'] = token.session_handle
+        
 
         return OAuthRequest(http_method, http_url, parameters)
 
@@ -306,6 +350,17 @@ class OAuthServer(object):
         self._check_signature(oauth_request, consumer, token)
         new_token = self.data_store.fetch_access_token(consumer, token)
         return new_token
+    
+    def refresh_access_token(self, oauth_request):
+        version = self._get_version(oauth_request)
+        consumer = self._get_consumer(oauth_request)
+        # requires aurhotized ACCESS token
+        token = self._get_token(oauth_request, "access")
+        self._check_signature(oauth_request, consumer, token)
+        self._check_session(oauth_request, consumer, token)
+        
+        new_token = self.data_store.renew_access_token(consumer, token)
+        return new_token
 
     # verify an api call, checks all the parameters
     def verify_request(self, oauth_request):
@@ -335,9 +390,9 @@ class OAuthServer(object):
         try:
             version = oauth_request.get_parameter('oauth_version')
         except:
-            version = VERSION
+            raise OAuthError('oauth_problem=parameter_absent&oauth_parameters_absent=oauth_version')
         if version and version != self.version:
-            raise OAuthError('OAuth version %s not supported.' % str(version))
+            raise OAuthError('oauth_problem=version_rejected&oauth_acceptable_verions=%s' % str(self.version))
         return version
 
     # figure out the signature with some defaults
@@ -351,17 +406,17 @@ class OAuthServer(object):
             signature_method = self.signature_methods[signature_method]
         except:
             signature_method_names = ', '.join(self.signature_methods.keys())
-            raise OAuthError('Signature method %s not supported try one of the following: %s' % (signature_method, signature_method_names))
+            raise OAuthError('oauth_problem=signature_method_rejected')
 
         return signature_method
 
     def _get_consumer(self, oauth_request):
         consumer_key = oauth_request.get_parameter('oauth_consumer_key')
         if not consumer_key:
-            raise OAuthError('Invalid consumer key.')
+            raise OAuthError('oauth_problem=parameter_absent&oauth_parameters_absent=oauth_consumer_key')
         consumer = self.data_store.lookup_consumer(consumer_key)
         if not consumer:
-            raise OAuthError('Invalid consumer.')
+            raise OAuthError('oauth_problem=consumer_key_unknown')
         return consumer
 
     # try to find the token for the provided request token key
@@ -369,7 +424,9 @@ class OAuthServer(object):
         token_field = oauth_request.get_parameter('oauth_token')
         token = self.data_store.lookup_token(token_type, token_field)
         if not token:
-            raise OAuthError('Invalid %s token: %s' % (token_type, token_field))
+            raise OAuthError('oauth_problem=token_rejected')
+        if token.isExpired():
+            raise OAuthError('oauth_problem=token_expired')
         return token
 
     def _check_signature(self, oauth_request, consumer, token):
@@ -380,12 +437,12 @@ class OAuthServer(object):
         try:
             signature = oauth_request.get_parameter('oauth_signature')
         except:
-            raise OAuthError('Missing signature.')
+            raise OAuthError('oauth_problem=parameter_absent&oauth_parameters_absent=oauth_signature')
         # validate the signature
         valid_sig = signature_method.check_signature(oauth_request, consumer, token, signature)
         if not valid_sig:
             key, base = signature_method.build_signature_base_string(oauth_request, consumer, token)
-            raise OAuthError('Invalid signature. Expected signature base string: %s' % base)
+            raise OAuthError('oauth_problem=signature_invalid')
         built = signature_method.build_signature(oauth_request, consumer, token)
 
     def _check_timestamp(self, timestamp):
@@ -394,13 +451,19 @@ class OAuthServer(object):
         now = int(time.time())
         lapsed = now - timestamp
         if lapsed > self.timestamp_threshold:
-            raise OAuthError('Expired timestamp: given %d and now %s has a greater difference than threshold %d' % (timestamp, now, self.timestamp_threshold))
+            raise OAuthError('oauth_problem=timestamp_refused&oauth_acceptable_timestamps=%d-%d' % (now - self.timestamp_threshold / 2 , now + self.timestamp_threshold / 2))
 
     def _check_nonce(self, consumer, token, nonce):
         # verify that the nonce is uniqueish
         nonce = self.data_store.lookup_nonce(consumer, token, nonce)
         if nonce:
-            raise OAuthError('Nonce already used: %s' % str(nonce))
+            raise OAuthError('oauth_problem=nonce_used')
+        
+    def _check_session(self, oauth_request, consumer, token):
+        if oauth_request.get_parameter('oauth_session_handle') != token.session_handle:
+            raise OAuthError('oauth_problem=token_not_renewable')
+        if token.session_expired():
+            raise OAuthError('oauth_problem=token_expired')
 
 # OAuthClient is a worker to attempt to execute a request
 class OAuthClient(object):
@@ -453,6 +516,10 @@ class OAuthDataStore(object):
         raise NotImplementedError
 
     def authorize_request_token(self, oauth_token, user):
+        # -> OAuthToken
+        raise NotImplementedError
+    
+    def renew_access_token(self, oauth_consumer, oauth_token):
         # -> OAuthToken
         raise NotImplementedError
 
