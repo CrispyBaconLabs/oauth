@@ -3,16 +3,17 @@ Example consumer.
 '''
 import httplib
 import time
-import oauth.oauth as oauth
+import oauth
 
-SERVER = 'localhost'
+SERVER = 'pureshape.corp.yahoo.com'
 PORT = 8080
 
-REQUEST_TOKEN_URL = 'https://photos.example.net/request_token'
-ACCESS_TOKEN_URL = 'https://photos.example.net/access_token'
-AUTHORIZATION_URL = 'https://photos.example.net/authorize'
+REQUEST_TOKEN_URL = 'http://pureshape.corp.yahoo.com/request_token'
+ACCESS_TOKEN_URL = 'http://pureshape.corp.yahoo.com/access_token'
+RENEW_ACCESS_TOKEN_URL = 'http://pureshape.corp.yahoo.com/renew_access_token'
+AUTHORIZATION_URL = 'http://pureshape.corp.yahoo.com/authorize'
+RESOURCE_URL = 'http://pureshape.corp.yahoo.com/photos'
 CALLBACK_URL = 'http://printer.example.com/request_token_ready'
-RESOURCE_URL = 'http://photos.example.net/photos'
 
 # key and secret granted by the service provider for this consumer application - same as the MockOAuthDataStore
 CONSUMER_KEY = 'key'
@@ -21,11 +22,12 @@ CONSUMER_SECRET = 'secret'
 # example client using httplib with headers
 class SimpleOAuthClient(oauth.OAuthClient):
 
-    def __init__(self, server, port=httplib.HTTP_PORT, request_token_url='', access_token_url='', authorization_url=''):
+    def __init__(self, server, port=httplib.HTTP_PORT, request_token_url='', access_token_url='', authorization_url='', renew_token_url=''):
         self.server = server
         self.port = port
         self.request_token_url = request_token_url
         self.access_token_url = access_token_url
+        self.renew_token_url = renew_token_url
         self.authorization_url = authorization_url
         self.connection = httplib.HTTPConnection("%s:%d" % (self.server, self.port))
 
@@ -40,6 +42,13 @@ class SimpleOAuthClient(oauth.OAuthClient):
         # via headers
         # -> OAuthToken
         self.connection.request(oauth_request.http_method, self.access_token_url, headers=oauth_request.to_header()) 
+        response = self.connection.getresponse()
+        return oauth.OAuthToken.from_string(response.read())
+    
+    def renew_access_token(self, oauth_request):
+        # via headers
+        # -> OAuthToken
+        self.connection.request(oauth_request.http_method, self.renew_token_url, headers=oauth_request.to_header())
         response = self.connection.getresponse()
         return oauth.OAuthToken.from_string(response.read())
 
@@ -62,7 +71,7 @@ def run_example():
 
     # setup
     print '** OAuth Python Library Example **'
-    client = SimpleOAuthClient(SERVER, PORT, REQUEST_TOKEN_URL, ACCESS_TOKEN_URL, AUTHORIZATION_URL)
+    client = SimpleOAuthClient(SERVER, PORT, REQUEST_TOKEN_URL, ACCESS_TOKEN_URL, AUTHORIZATION_URL, RENEW_ACCESS_TOKEN_URL)
     consumer = oauth.OAuthConsumer(CONSUMER_KEY, CONSUMER_SECRET)
     signature_method_plaintext = oauth.OAuthSignatureMethod_PLAINTEXT()
     signature_method_hmac_sha1 = oauth.OAuthSignatureMethod_HMAC_SHA1()
@@ -80,6 +89,8 @@ def run_example():
     print 'GOT'
     print 'key: %s' % str(token.key)
     print 'secret: %s' % str(token.secret)
+    if token.expires:
+        print 'expiration: %s' % str(token.expires)
     pause()
 
     print '* Authorize the request token ...'
@@ -106,6 +117,12 @@ def run_example():
     print 'GOT'
     print 'key: %s' % str(token.key)
     print 'secret: %s' % str(token.secret)
+    if token.expires:
+        print 'expiration: %s' % str(token.expires)
+    if token.session_handle:
+        print 'session handle: %s' % str(token.session_handle)
+    if token.session_expires:
+        print 'session expiration: %s' % str(token.session_expires)
     pause()
 
     # access some protected resources
@@ -120,6 +137,26 @@ def run_example():
     params = client.access_resource(oauth_request)
     print 'GOT'
     print 'non-oauth parameters: %s' % params
+    pause()
+    
+    # renew access token (new in 2008.1)
+    print '* Renew the access token ...'
+    pause()
+    if token.expires:
+        oauth_request = oauth.OAuthRequest.from_consumer_and_token(consumer, token=token, http_url=client.renew_token_url)
+        oauth_request.sign_request(signature_method_plaintext, consumer, token)
+        print 'REQUEST (via headers)'
+        print 'parameters: %s' % str(oauth_request.parameters)
+        pause()
+        token = client.renew_access_token(oauth_request)
+        print 'GOT'
+        print 'key: %s' % str(token.key)
+        print 'secret: %s' % str(token.secret)
+        print 'expiration: %s' % str(token.expires)
+        print 'session handle: %s' % str(token.session_handle)
+        print 'session expiration: %s' % str(token.session_expires)
+    else:
+        print 'Access token never expires. Skipping ...' 
     pause()
 
 def pause():

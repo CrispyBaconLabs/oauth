@@ -1,21 +1,21 @@
 from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 import urllib
 
-import oauth.oauth as oauth
+import oauth
 
-REQUEST_TOKEN_URL = 'https://photos.example.net/request_token'
-ACCESS_TOKEN_URL = 'https://photos.example.net/access_token'
-AUTHORIZATION_URL = 'https://photos.example.net/authorize'
-RESOURCE_URL = 'http://photos.example.net/photos'
-REALM = 'http://photos.example.net/'
+REQUEST_TOKEN_URL = 'http://pureshape.corp.yahoo.com/request_token'
+ACCESS_TOKEN_URL = 'http://pureshape.corp.yahoo.com/access_token'
+RENEW_ACCESS_TOKEN_URL = 'http://pureshape.corp.yahoo.com/renew_access_token'
+AUTHORIZATION_URL = 'http://pureshape.corp.yahoo.com/authorize'
+RESOURCE_URL = 'http://pureshape.corp.yahoo.com/photos'
+REALM = 'http://pureshape.corp.yahoo.com/'
 
 # example store for one of each thing
 class MockOAuthDataStore(oauth.OAuthDataStore):
-
     def __init__(self):
         self.consumer = oauth.OAuthConsumer('key', 'secret')
-        self.request_token = oauth.OAuthToken('requestkey', 'requestsecret')
-        self.access_token = oauth.OAuthToken('accesskey', 'accesssecret')
+        self.request_token = oauth.OAuthToken('requestkey', 'requestsecret', 3600)
+        self.access_token = oauth.OAuthToken('accesskey', 'accesssecret', 3600, 'sessionhandle', 3600)
         self.nonce = 'nonce'
 
     def lookup_consumer(self, key):
@@ -43,6 +43,14 @@ class MockOAuthDataStore(oauth.OAuthDataStore):
         if oauth_consumer.key == self.consumer.key and oauth_token.key == self.request_token.key:
             # want to check here if token is authorized
             # for mock store, we assume it is
+            return self.access_token
+        return None
+    
+    def renew_access_token(self, oauth_consumer, oauth_token):
+        if oauth_consumer.key == self.consumer.key and oauth_token.key == self.access_token.key and oauth_token.session_handle == self.access_token.session_handle:
+            # Want to check here for token expiration
+            # Also should make sure the new token is returned with a fresh expiration
+            # for mock store, the old token is returned
             return self.access_token
         return None
 
@@ -127,6 +135,19 @@ class RequestHandler(BaseHTTPRequestHandler):
             try:
                 # create an access token
                 token = self.oauth_server.fetch_access_token(oauth_request)
+                # send okay response
+                self.send_response(200, 'OK')
+                self.end_headers()
+                # return the token
+                self.wfile.write(token.to_string())
+            except oauth.OAuthError, err:
+                self.send_oauth_error(err)
+            return
+        
+        # renew token
+        if self.path.startswith(RENEW_ACCESS_TOKEN_URL):
+            try:
+                token = self.oauth_server.refresh_access_token(oauth_request)
                 # send okay response
                 self.send_response(200, 'OK')
                 self.end_headers()
