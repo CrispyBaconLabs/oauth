@@ -6,34 +6,34 @@ use UNIVERSAL::require;
 our $VERSION = '0.11';
 
 sub request {
-    my $self = shift;
+	my $self = shift;
 	my $what = shift;
-    return $self->message($what . ' Request');
+	return $self->message( $what . ' Request' );
 }
 
 sub response {
-    my $self = shift;
+	my $self = shift;
 	my $what = shift;
-    return $self->message($what . ' Response');
+	return $self->message( $what . ' Response' );
 }
 
 sub message {
-    my $self = shift;
-    my $type = camel(shift);
-    my $class = 'Net::OAuth::' . $type;
+	my $self  = shift;
+	my $type  = camel(shift);
+	my $class = 'Net::OAuth::' . $type;
 	$class->require;
-    return $class;
+	return $class;
 }
 
 sub camel {
 	my @words;
 	foreach (@_) {
 		while (/([A-Za-z0-9]+)/g) {
-			(my $word = $1) =~ s/authentication/auth/i;
+			( my $word = $1 ) =~ s/authentication/auth/i;
 			push @words, $word;
 		}
 	}
-	my $name = join('', map("\u$_", @words));
+	my $name = join( '', map( "\u$_", @words ) );
 }
 
 =head1 NAME
@@ -70,6 +70,9 @@ Net::OAuth - OAuth protocol support
 		my $response = Net::OAuth->response('request token')->from_post_body($res->content);
 		print "Got Request Token ", $response->token, "\n";
 		print "Got Request Token Secret ", $response->token_secret, "\n";
+		if ($response->expires_in) {
+			print "Got Token Expiration ", $response->expires_in, "\n";
+		}
 	}
 	else {
 		die "Something went wrong";
@@ -98,12 +101,42 @@ Net::OAuth - OAuth protocol support
 		my $response = Net::OAuth->response("request token")->new( 
 			token => 'abcdef',
 			token_secret => '0123456',
+			expires_in => '3600', # new in 2008.1
 		);
 
 		print $response->to_post_body;
 	}	
 
 	# Etc..
+	
+	# Service Provider receives Access Token Request
+	
+	use Net::OAuth;
+	use CGI;
+	my $q = new CGI;
+	
+	my $request = Net::OAuth->request("access token")->from_hash($q->Vars,
+		request_url => 'https://photos.example.net/access_token',
+		request_method => $q->request_method,
+		consumer_secret => 'kd94hf93k423kf44',
+	);
+
+	if (!$request->verify) {
+		die "Signature verification failed";
+	}
+	else {
+		# Service Provider sends Access Token Response
+
+		my $response = Net::OAuth->response("access token")->new( 
+			token => 'accesstoken',
+			token_secret => 'accesssecret',
+			expires_in => '3600', # new in 2008.1
+			session_handle => 'sessionhandle', # new in 2008.1
+			authorization_expires_in => '3600', # new in 2008.1
+		);
+
+		print $response->to_post_body;
+	}	
 
 =head1 ABSTRACT
 
