@@ -42,3 +42,6 @@ Revision history for Net-OAuth
 				
 0.11    Wed, 04 Jun 2008 16:50:14 UTC
 				Doc edits
+				
+0.12	Fri, 22 Aug 2008 16:17:15 UTC
+				Added OAuth Session Support.
