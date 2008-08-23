@@ -8,6 +8,9 @@ __PACKAGE__->mk_classdata(required_message_params => [qw/
     /]);
 
 __PACKAGE__->mk_classdata(optional_message_params => [qw/
+	session_handle
+	expires_in
+	authorization_expires_in
     /]);
 
 __PACKAGE__->mk_classdata(required_api_params => [qw/

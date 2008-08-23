@@ -27,6 +27,7 @@ __PACKAGE__->mk_classdata(optional_api_params => [qw/
     signature_key
     token_secret
     extra_params
+    session_handle
     /]);
 
 __PACKAGE__->mk_classdata(signature_elements => [qw/
