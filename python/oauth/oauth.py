@@ -13,6 +13,7 @@ SIGNATURE_METHOD = 'PLAINTEXT'
 # Generic exception class
 class OAuthError(RuntimeError):
     def __init__(self, message='OAuth error occured.'):
+        RuntimeError.__init__(self, message=message)
         self.message = message
 
 # optional WWW-Authenticate header (401 error)
