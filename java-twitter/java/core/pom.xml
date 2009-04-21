@@ -1,0 +1,61 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>net.oauth</groupId>
+    <artifactId>oauth-parent</artifactId>
+    <version>20090105</version>
+  </parent>
+  <artifactId>oauth-core</artifactId>
+  <version>20090408</version>
+  <packaging>jar</packaging>
+  <name>OAuth::Core</name>
+  <dependencies>
+    <dependency>
+      <groupId>commons-codec</groupId>
+      <artifactId>commons-codec</artifactId>
+      <version>1.3</version>
+    </dependency>
+    <dependency>
+      <groupId>commons-httpclient</groupId>
+      <artifactId>commons-httpclient</artifactId>
+      <version>3.1</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>javax.servlet</groupId>
+      <artifactId>servlet-api</artifactId>
+      <version>2.4</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.httpcomponents</groupId>
+      <artifactId>httpclient</artifactId>
+      <version>4.0-beta2</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.mortbay.jetty</groupId>
+      <artifactId>jetty-embedded</artifactId>
+      <version>6.1.11</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>net.unto.twitter</groupId>
+      <artifactId>java-twitter</artifactId>
+      <version>0.9-SNAPSHOT</version>
+    </dependency>
+  </dependencies>
+  <repositories>
+    <repository>
+      <id>codehaus-release-repo</id>
+      <name>Codehaus Release Repo</name>
+      <url>http://repository.codehaus.org</url>
+    </repository>
+    <repository>
+      <id>java-twitter-repository</id>
+      <url>http://java-twitter.googlecode.com/svn/repository/</url>
+      <name>java-twitter maven repository</name>
+    </repository>
+  </repositories>
+</project>
